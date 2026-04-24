@@ -1,7 +1,4 @@
 build/
 .gradle/
 *.class
-*.jar
 *.log
-.gradledata/
-*.zip
