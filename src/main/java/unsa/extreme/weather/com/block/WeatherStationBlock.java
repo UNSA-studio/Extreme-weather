@@ -24,6 +24,9 @@ public class WeatherStationBlock extends Block implements EntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return createTickerHelper(type, ModBlockEntities.WEATHER_STATION.get(), WeatherStationBlockEntity::tick);
+        if (type == ModBlockEntities.WEATHER_STATION.get()) {
+            return (BlockEntityTicker<T>)(BlockEntityTicker<WeatherStationBlockEntity>)WeatherStationBlockEntity::tick;
+        }
+        return null;
     }
 }

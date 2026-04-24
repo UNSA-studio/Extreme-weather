@@ -7,9 +7,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ArmorMaterials;
 import net.minecraft.world.item.ItemStack;
@@ -29,22 +26,17 @@ public class ActiveExtremeWeather {
 
     public void begin(Level level) {
         active = true;
-        if (!level.isClientSide) {
-            LOGGER.info("Extreme weather started: {}", type.name());
-        }
+        if (!level.isClientSide) LOGGER.info("Extreme weather started: {}", type.name());
     }
 
     public void end(Level level) {
         active = false;
-        if (!level.isClientSide) {
-            LOGGER.info("Extreme weather ended: {}", type.name());
-        }
+        if (!level.isClientSide) LOGGER.info("Extreme weather ended: {}", type.name());
     }
 
     public void tick(ServerLevel level) {
         if (!active) return;
         remainingTicks--;
-
         switch (type) {
             case EXTREME_THUNDERSTORM -> tickThunderstorm(level);
             case SUPER_RAIN -> tickSuperRain(level);
@@ -59,10 +51,7 @@ public class ActiveExtremeWeather {
         if (level.random.nextFloat() < 0.02f) {
             for (Player player : level.players()) {
                 BlockPos pos = player.blockPosition().offset(
-                    level.random.nextInt(20) - 10,
-                    0,
-                    level.random.nextInt(20) - 10
-                );
+                    level.random.nextInt(20) - 10, 0, level.random.nextInt(20) - 10);
                 LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
                 bolt.setPos(pos.getX(), pos.getY(), pos.getZ());
                 level.addFreshEntity(bolt);
@@ -72,10 +61,10 @@ public class ActiveExtremeWeather {
 
     private void tickSuperRain(ServerLevel level) {
         if (level.random.nextFloat() < 0.01f) {
-            // 简单实现：随机填充低处水
             for (Player player : level.players()) {
                 BlockPos pos = player.blockPosition().below();
-                if (level.getBlockState(pos).isAir() && level.getBlockState(pos.below()).isCollisionShapeFullBlock(level, pos.below())) {
+                if (level.getBlockState(pos).isAir() &&
+                    level.getBlockState(pos.below()).isCollisionShapeFullBlock(level, pos.below())) {
                     level.setBlock(pos, Blocks.WATER.defaultBlockState(), 3);
                 }
             }
@@ -84,13 +73,10 @@ public class ActiveExtremeWeather {
 
     private void tickSuperDrought(ServerLevel level) {
         for (Player player : level.players()) {
-            boolean exposed = level.canSeeSky(player.blockPosition());
-            if (exposed) {
+            if (level.canSeeSky(player.blockPosition())) {
                 int protection = getArmorProtection(player);
-                int interval = protection >= 2 ? 600 : 200; // 30s or 10s
-                if (player.tickCount % interval == 0) {
-                    player.setRemainingFireTicks(100);
-                }
+                int interval = protection >= 2 ? 600 : 200;
+                if (player.tickCount % interval == 0) player.setRemainingFireTicks(100);
             }
         }
     }
@@ -102,17 +88,15 @@ public class ActiveExtremeWeather {
     private int getArmorProtection(Player player) {
         int protection = 0;
         for (ItemStack armor : player.getArmorSlots()) {
-            if (armor.getItem() instanceof ArmorItem ai &&
-                ai.getMaterial() == ArmorMaterials.IRON ||
-                ai.getMaterial() == ArmorMaterials.DIAMOND ||
-                ai.getMaterial() == ArmorMaterials.NETHERITE) {
-                protection++;
+            if (armor.getItem() instanceof ArmorItem ai) {
+                ArmorMaterials mat = ai.getMaterial();
+                if (mat == ArmorMaterials.IRON || mat == ArmorMaterials.DIAMOND || mat == ArmorMaterials.NETHERITE) {
+                    protection++;
+                }
             }
         }
         return protection;
     }
 
-    public boolean isExpired() {
-        return remainingTicks <= 0;
-    }
+    public boolean isExpired() { return remainingTicks <= 0; }
 }

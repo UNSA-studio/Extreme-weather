@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -51,7 +52,8 @@ public class PollutionFixStationBlockEntity extends BlockEntity {
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
         if (tag.contains("Missile")) {
-            missileSlot = ItemStack.parseOptional(registries, tag.getCompound("Missile")).orElse(ItemStack.EMPTY);
+            missileSlot = ItemStack.CODEC.parse(NbtOps.INSTANCE, tag.getCompound("Missile"))
+                    .result().orElse(ItemStack.EMPTY);
         }
         cooldown = tag.getInt("Cooldown");
     }
@@ -60,7 +62,8 @@ public class PollutionFixStationBlockEntity extends BlockEntity {
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         if (!missileSlot.isEmpty()) {
-            tag.put("Missile", missileSlot.save(registries));
+            tag.put("Missile", ItemStack.CODEC.encodeStart(NbtOps.INSTANCE, missileSlot)
+                    .result().orElse(new CompoundTag()));
         }
         tag.putInt("Cooldown", cooldown);
     }

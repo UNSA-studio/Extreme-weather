@@ -2,7 +2,7 @@ package unsa.extreme.weather.com;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModLoadingContext;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -20,12 +20,12 @@ import unsa.extreme.weather.com.network.ModPacketHandler;
 public class ExtremeWeather {
     public static final String MODID = "extreme_weather";
 
-    public ExtremeWeather(IEventBus bus) {
+    public ExtremeWeather(IEventBus bus, ModContainer container) {
         ModBlocks.BLOCKS.register(bus);
         ModItems.ITEMS.register(bus);
         ModBlockEntities.BLOCK_ENTITIES.register(bus);
         ModSounds.SOUNDS.register(bus);
-        ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ModConfigs.SPEC);
+        container.registerConfig(ModConfig.Type.SERVER, ModConfigs.SPEC);
         ExtremeWeatherManager.init(bus);
         PollutionManager.init(bus);
         ModPacketHandler.register(bus);
