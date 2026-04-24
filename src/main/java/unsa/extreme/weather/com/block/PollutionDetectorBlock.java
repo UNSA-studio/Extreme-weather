@@ -10,9 +10,10 @@ import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.client.Minecraft;
 import unsa.extreme.weather.com.blockentity.PollutionDetectorBlockEntity;
 import unsa.extreme.weather.com.client.gui.PollutionDetectorScreen;
-import net.minecraft.client.Minecraft;
+import org.jetbrains.annotations.Nullable;
 
 public class PollutionDetectorBlock extends Block implements EntityBlock {
     public PollutionDetectorBlock(Properties p) { super(p); }

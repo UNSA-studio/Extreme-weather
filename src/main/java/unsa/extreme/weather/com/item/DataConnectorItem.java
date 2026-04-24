@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import unsa.extreme.weather.com.blockentity.ExtremeWeatherDetectorBlockEntity;
 import unsa.extreme.weather.com.blockentity.AlarmBlockEntity;
 import unsa.extreme.weather.com.blockentity.WeatherStationBlockEntity;
+import net.minecraft.world.item.component.CustomData;
 
 public class DataConnectorItem extends Item {
     public DataConnectorItem(Properties props) {
@@ -24,11 +25,12 @@ public class DataConnectorItem extends Item {
         if (context.getLevel().isClientSide) return InteractionResult.SUCCESS;
         BlockEntity be = context.getLevel().getBlockEntity(context.getClickedPos());
         ItemStack stack = context.getItemInHand();
-        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CompoundTag.EMPTY).copy();
+        CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+        CompoundTag tag = customData.copyTag(); // Creates a mutable copy
 
         if (be instanceof WeatherStationBlockEntity) {
             tag.putLong(STORED_POS_KEY, context.getClickedPos().asLong());
-            stack.set(DataComponents.CUSTOM_DATA, tag);
+            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
             return InteractionResult.SUCCESS;
         } else if (be instanceof ExtremeWeatherDetectorBlockEntity detector) {
             if (tag.contains(STORED_POS_KEY)) {
@@ -36,7 +38,7 @@ public class DataConnectorItem extends Item {
                 detector.linkToStation(stationPos);
                 tag.remove(STORED_POS_KEY);
                 if (tag.isEmpty()) stack.remove(DataComponents.CUSTOM_DATA);
-                else stack.set(DataComponents.CUSTOM_DATA, tag);
+                else stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
                 return InteractionResult.SUCCESS;
             }
         } else if (be instanceof AlarmBlockEntity alarm) {
@@ -45,7 +47,7 @@ public class DataConnectorItem extends Item {
                 alarm.setLinkedDetector(detectorPos);
                 tag.remove(STORED_POS_KEY);
                 if (tag.isEmpty()) stack.remove(DataComponents.CUSTOM_DATA);
-                else stack.set(DataComponents.CUSTOM_DATA, tag);
+                else stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
                 return InteractionResult.SUCCESS;
             }
         }

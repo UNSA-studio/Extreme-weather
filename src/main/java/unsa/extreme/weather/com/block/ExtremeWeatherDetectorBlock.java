@@ -10,9 +10,10 @@ import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.client.Minecraft;
 import unsa.extreme.weather.com.blockentity.ExtremeWeatherDetectorBlockEntity;
 import unsa.extreme.weather.com.client.gui.ExtremeWeatherDetectorScreen;
-import net.minecraft.client.Minecraft;
+import org.jetbrains.annotations.Nullable;
 
 public class ExtremeWeatherDetectorBlock extends Block implements EntityBlock {
     public ExtremeWeatherDetectorBlock(Properties p) { super(p); }
