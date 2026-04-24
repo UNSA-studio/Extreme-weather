@@ -16,7 +16,7 @@ import unsa.extreme.weather.com.client.gui.ExtremeWeatherDetectorScreen;
 public class ExtremeWeatherDetectorBlock extends Block {
     public ExtremeWeatherDetectorBlock(Properties p) { super(p); }
 
-    @Override
+    @SuppressWarnings("deprecation")
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
         if (level.isClientSide) {
             BlockEntity be = level.getBlockEntity(pos);
