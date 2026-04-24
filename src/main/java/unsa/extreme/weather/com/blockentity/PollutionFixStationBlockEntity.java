@@ -2,6 +2,7 @@ package unsa.extreme.weather.com.blockentity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -21,8 +22,7 @@ public class PollutionFixStationBlockEntity extends BlockEntity {
 
     public boolean insertMissile(ItemStack missile) {
         if (missile.getItem() instanceof WeatherMissileItem && missileSlot.isEmpty()) {
-            missileSlot = missile.copy();
-            missileSlot.setCount(1);
+            missileSlot = missile.copyWithCount(1);
             missile.shrink(1);
             setChanged();
             return true;
@@ -32,36 +32,36 @@ public class PollutionFixStationBlockEntity extends BlockEntity {
 
     public void launch(Direction direction) {
         if (!missileSlot.isEmpty() && cooldown <= 0) {
-            // 检查方向无阻挡（简化）
-            WeatherMissileItem m = (WeatherMissileItem) missileSlot.getItem();
-            PollutionManager.reducePollution(level, m.getRepairPercentage());
+            if (missileSlot.getItem() instanceof WeatherMissileItem m) {
+                PollutionManager.reducePollution(level, m.getRepairPercentage());
+            }
             missileSlot = ItemStack.EMPTY;
-            cooldown = 200; // 10秒冷却
+            cooldown = 200;
             setChanged();
         }
     }
 
-    public ItemStack getMissile() {
-        return missileSlot;
-    }
+    public ItemStack getMissile() { return missileSlot; }
 
     public static void tick(Level level, BlockPos pos, BlockState state, PollutionFixStationBlockEntity be) {
-        if (!level.isClientSide && be.cooldown > 0) {
-            be.cooldown--;
-        }
+        if (!level.isClientSide && be.cooldown > 0) be.cooldown--;
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
-        missileSlot = ItemStack.of(tag.getCompound("Missile"));
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        if (tag.contains("Missile")) {
+            missileSlot = ItemStack.parseOptional(registries, tag.getCompound("Missile")).orElse(ItemStack.EMPTY);
+        }
         cooldown = tag.getInt("Cooldown");
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
-        tag.put("Missile", missileSlot.save(new CompoundTag()));
+    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        if (!missileSlot.isEmpty()) {
+            tag.put("Missile", missileSlot.save(registries));
+        }
         tag.putInt("Cooldown", cooldown);
     }
 }

@@ -1,6 +1,7 @@
 package unsa.extreme.weather.com.blockentity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -27,9 +28,7 @@ public class WeatherStationBlockEntity extends BlockEntity {
         }
     }
 
-    public boolean isBalloonDeployed() {
-        return balloonDeployed;
-    }
+    public boolean isBalloonDeployed() { return balloonDeployed; }
 
     public double getPollutionRead() {
         return PollutionManager.getPollution(level);
@@ -39,24 +38,20 @@ public class WeatherStationBlockEntity extends BlockEntity {
         return ExtremeWeatherManager.getCurrentProbabilities(level);
     }
 
-    public long getDeployTime() {
-        return deployTime;
-    }
+    public long getDeployTime() { return deployTime; }
 
-    public static void tick(Level level, BlockPos pos, BlockState state, WeatherStationBlockEntity entity) {
-        // 可以加入周期检查逻辑
-    }
+    public static void tick(Level level, BlockPos pos, BlockState state, WeatherStationBlockEntity entity) {}
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
         balloonDeployed = tag.getBoolean("BalloonDeployed");
         deployTime = tag.getLong("DeployTime");
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
         tag.putBoolean("BalloonDeployed", balloonDeployed);
         tag.putLong("DeployTime", deployTime);
     }

@@ -10,12 +10,12 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import unsa.extreme.weather.com.blockentity.WeatherStationBlockEntity;
 import unsa.extreme.weather.com.init.ModBlockEntities;
-
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 public class WeatherStationBlock extends Block implements EntityBlock {
     public WeatherStationBlock(Properties p) { super(p); }
 
+    @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new WeatherStationBlockEntity(pos, state);
@@ -24,6 +24,6 @@ public class WeatherStationBlock extends Block implements EntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return type == ModBlockEntities.WEATHER_STATION.get() ? WeatherStationBlockEntity::tick : null;
+        return createTickerHelper(type, ModBlockEntities.WEATHER_STATION.get(), WeatherStationBlockEntity::tick);
     }
 }

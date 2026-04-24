@@ -1,6 +1,7 @@
 package unsa.extreme.weather.com.blockentity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.Level;
@@ -26,11 +27,10 @@ public class AlarmBlockEntity extends BlockEntity {
     public static void tick(Level level, BlockPos pos, BlockState state, AlarmBlockEntity be) {
         if (level.isClientSide) return;
         if (be.linkedDetectorPos == null) return;
-        BlockEntity te = level.getBlockEntity(be.linkedDetectorPos);
-        if (te instanceof ExtremeWeatherDetectorBlockEntity detector) {
+        if (level.getBlockEntity(be.linkedDetectorPos) instanceof ExtremeWeatherDetectorBlockEntity detector) {
             WeatherStationBlockEntity ws = detector.getLinkedStationEntity();
             if (ws != null && ws.isBalloonDeployed()) {
-                boolean imminent = ExtremeWeatherManager.isExtremeWeatherImminent(level, 1200); // 1分钟
+                boolean imminent = ExtremeWeatherManager.isExtremeWeatherImminent(level, 1200);
                 if (imminent && !be.alarming) {
                     be.alarming = true;
                     level.playSound(null, pos, ModSounds.ALARM.get(), SoundSource.BLOCKS, 1.0f, 1.0f);
@@ -42,16 +42,16 @@ public class AlarmBlockEntity extends BlockEntity {
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
         if (tag.contains("LinkedDetectorPos")) {
             linkedDetectorPos = BlockPos.of(tag.getLong("LinkedDetectorPos"));
         }
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
         if (linkedDetectorPos != null) {
             tag.putLong("LinkedDetectorPos", linkedDetectorPos.asLong());
         }

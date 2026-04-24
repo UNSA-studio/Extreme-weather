@@ -1,6 +1,7 @@
 package unsa.extreme.weather.com.blockentity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -10,7 +11,6 @@ import java.util.Map;
 
 public class ExtremeWeatherDetectorBlockEntity extends BlockEntity {
     private BlockPos linkedStationPos = null;
-    private boolean hasData = false;
 
     public ExtremeWeatherDetectorBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.EXTREME_WEATHER_DETECTOR.get(), pos, state);
@@ -21,13 +21,9 @@ public class ExtremeWeatherDetectorBlockEntity extends BlockEntity {
         setChanged();
     }
 
-    public boolean isLinked() {
-        return linkedStationPos != null;
-    }
+    public boolean isLinked() { return linkedStationPos != null; }
 
-    public BlockPos getLinkedStationPos() {
-        return linkedStationPos;
-    }
+    public BlockPos getLinkedStationPos() { return linkedStationPos; }
 
     public WeatherStationBlockEntity getLinkedStationEntity() {
         if (linkedStationPos != null && level != null) {
@@ -38,7 +34,6 @@ public class ExtremeWeatherDetectorBlockEntity extends BlockEntity {
         return null;
     }
 
-    // 给GUI提供的数据
     public double getPollution() {
         WeatherStationBlockEntity ws = getLinkedStationEntity();
         return ws != null && ws.isBalloonDeployed() ? ws.getPollutionRead() : -1;
@@ -50,16 +45,16 @@ public class ExtremeWeatherDetectorBlockEntity extends BlockEntity {
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
         if (tag.contains("LinkedStationPos")) {
             linkedStationPos = BlockPos.of(tag.getLong("LinkedStationPos"));
         }
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
         if (linkedStationPos != null) {
             tag.putLong("LinkedStationPos", linkedStationPos.asLong());
         }

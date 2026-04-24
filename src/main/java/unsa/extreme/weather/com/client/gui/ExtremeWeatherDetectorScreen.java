@@ -1,10 +1,10 @@
 package unsa.extreme.weather.com.client.gui;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import unsa.extreme.weather.com.blockentity.ExtremeWeatherDetectorBlockEntity;
+import unsa.extreme.weather.com.blockentity.WeatherStationBlockEntity;
 import unsa.extreme.weather.com.weather.ExtremeWeatherType;
 import java.util.Map;
 

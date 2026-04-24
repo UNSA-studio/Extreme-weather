@@ -20,7 +20,6 @@ public class DataConnectorItem extends Item {
         if (context.getLevel().isClientSide) return InteractionResult.SUCCESS;
         BlockEntity be = context.getLevel().getBlockEntity(context.getClickedPos());
         if (be instanceof WeatherStationBlockEntity) {
-            // 存储到nbt
             CompoundTag tag = context.getItemInHand().getOrCreateTag();
             tag.putLong("StoredPos", context.getClickedPos().asLong());
             return InteractionResult.SUCCESS;
