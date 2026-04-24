@@ -1,0 +1,5 @@
+{
+    "alarm": {
+        "sounds": [ { "name": "extreme_weather:alarm", "stream": true } ]
+    }
+}

@@ -1,0 +1,19 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '1.0.21'
+}
+version = '1.0.0'
+group = 'unsa.extreme.weather.com'
+base.archivesName = 'extreme_weather'
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+neoForge {
+    version = '21.1.219'
+    mods {
+        extreme_weather { sourceSet sourceSets.main }
+    }
+}
+repositories {
+    maven { name = "Jared's maven"; url = "https://maven.blamejared.com/" }
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }

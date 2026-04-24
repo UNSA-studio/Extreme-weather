@@ -1,0 +1,19 @@
+{
+    "block.extreme_weather.weather_station": "Weather Station",
+    "block.extreme_weather.extreme_weather_detector": "Extreme Weather Detector",
+    "block.extreme_weather.alarm_block": "Alarm",
+    "block.extreme_weather.weather_suppressor": "Extreme Weather Suppressor",
+    "block.extreme_weather.pollution_fix_station": "Pollution Fix Station",
+    "block.extreme_weather.pollution_detector": "Pollution Detector",
+    "item.extreme_weather.weather_balloon": "Weather Balloon",
+    "item.extreme_weather.data_connector": "Data Connector",
+    "item.extreme_weather.weather_missile_1": "Weather Missile I",
+    "item.extreme_weather.weather_missile_2": "Weather Missile II",
+    "item.extreme_weather.weather_missile_3": "Weather Missile III",
+    "item.extreme_weather.repair_agent": "Repair Agent",
+    "item.extreme_weather.co2_fixer": "CO2 Fixer",
+    "item.extreme_weather.methane_converter": "Methane Converter",
+    "item.extreme_weather.repair_mix": "Repair Mix",
+    "item.extreme_weather.water_essence": "Water Essence",
+    "itemGroup.extreme_weather": "Extreme Weather"
+}
