@@ -10,19 +10,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.client.Minecraft;
-import net.neoforged.neoforge.common.extensions.IEntityBlockExtension;
 import unsa.extreme.weather.com.blockentity.ExtremeWeatherDetectorBlockEntity;
 import unsa.extreme.weather.com.client.gui.ExtremeWeatherDetectorScreen;
-import org.jetbrains.annotations.Nullable;
 
-public class ExtremeWeatherDetectorBlock extends Block implements IEntityBlockExtension {
+public class ExtremeWeatherDetectorBlock extends Block {
     public ExtremeWeatherDetectorBlock(Properties p) { super(p); }
-
-    @Nullable
-    @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new ExtremeWeatherDetectorBlockEntity(pos, state);
-    }
 
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {

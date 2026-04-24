@@ -10,19 +10,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.client.Minecraft;
-import net.neoforged.neoforge.common.extensions.IEntityBlockExtension;
 import unsa.extreme.weather.com.blockentity.PollutionDetectorBlockEntity;
 import unsa.extreme.weather.com.client.gui.PollutionDetectorScreen;
-import org.jetbrains.annotations.Nullable;
 
-public class PollutionDetectorBlock extends Block implements IEntityBlockExtension {
+public class PollutionDetectorBlock extends Block {
     public PollutionDetectorBlock(Properties p) { super(p); }
-
-    @Nullable
-    @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new PollutionDetectorBlockEntity(pos, state);
-    }
 
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
