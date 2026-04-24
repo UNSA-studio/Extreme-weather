@@ -24,6 +24,9 @@ public class PollutionFixStationBlock extends Block implements EntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return createTickerHelper(type, ModBlockEntities.POLLUTION_FIX_STATION.get(), PollutionFixStationBlockEntity::tick);
+        if (type == ModBlockEntities.POLLUTION_FIX_STATION.get()) {
+            return (BlockEntityTicker<T>)(BlockEntityTicker<PollutionFixStationBlockEntity>)PollutionFixStationBlockEntity::tick;
+        }
+        return null;
     }
 }

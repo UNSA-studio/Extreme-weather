@@ -10,6 +10,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ArmorMaterials;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.Holder;
+import net.minecraft.world.item.ArmorMaterial;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 
@@ -89,8 +91,9 @@ public class ActiveExtremeWeather {
         int protection = 0;
         for (ItemStack armor : player.getArmorSlots()) {
             if (armor.getItem() instanceof ArmorItem ai) {
-                ArmorMaterials mat = ai.getMaterial();
-                if (mat == ArmorMaterials.IRON || mat == ArmorMaterials.DIAMOND || mat == ArmorMaterials.NETHERITE) {
+                Holder<ArmorMaterial> holder = ai.getMaterial();
+                ArmorMaterial mat = holder.value();
+                if (mat == ArmorMaterials.IRON.value() || mat == ArmorMaterials.DIAMOND.value() || mat == ArmorMaterials.NETHERITE.value()) {
                     protection++;
                 }
             }

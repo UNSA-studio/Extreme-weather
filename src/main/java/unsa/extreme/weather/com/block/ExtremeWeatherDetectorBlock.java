@@ -17,6 +17,7 @@ import net.minecraft.client.Minecraft;
 public class ExtremeWeatherDetectorBlock extends Block implements EntityBlock {
     public ExtremeWeatherDetectorBlock(Properties p) { super(p); }
 
+    @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new ExtremeWeatherDetectorBlockEntity(pos, state);

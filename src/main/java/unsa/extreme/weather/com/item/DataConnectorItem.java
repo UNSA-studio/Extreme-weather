@@ -17,31 +17,35 @@ public class DataConnectorItem extends Item {
         super(props);
     }
 
+    private static final String STORED_POS_KEY = "StoredPos";
+
     @Override
     public InteractionResult useOn(UseOnContext context) {
         if (context.getLevel().isClientSide) return InteractionResult.SUCCESS;
         BlockEntity be = context.getLevel().getBlockEntity(context.getClickedPos());
         ItemStack stack = context.getItemInHand();
-        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, new CompoundTag());
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CompoundTag.EMPTY).copy();
 
         if (be instanceof WeatherStationBlockEntity) {
-            tag.putLong("StoredPos", context.getClickedPos().asLong());
+            tag.putLong(STORED_POS_KEY, context.getClickedPos().asLong());
             stack.set(DataComponents.CUSTOM_DATA, tag);
             return InteractionResult.SUCCESS;
         } else if (be instanceof ExtremeWeatherDetectorBlockEntity detector) {
-            if (tag.contains("StoredPos")) {
-                BlockPos stationPos = BlockPos.of(tag.getLong("StoredPos"));
+            if (tag.contains(STORED_POS_KEY)) {
+                BlockPos stationPos = BlockPos.of(tag.getLong(STORED_POS_KEY));
                 detector.linkToStation(stationPos);
-                tag.remove("StoredPos");
-                stack.set(DataComponents.CUSTOM_DATA, tag.isEmpty() ? null : tag);
+                tag.remove(STORED_POS_KEY);
+                if (tag.isEmpty()) stack.remove(DataComponents.CUSTOM_DATA);
+                else stack.set(DataComponents.CUSTOM_DATA, tag);
                 return InteractionResult.SUCCESS;
             }
         } else if (be instanceof AlarmBlockEntity alarm) {
-            if (tag.contains("StoredPos")) {
-                BlockPos detectorPos = BlockPos.of(tag.getLong("StoredPos"));
+            if (tag.contains(STORED_POS_KEY)) {
+                BlockPos detectorPos = BlockPos.of(tag.getLong(STORED_POS_KEY));
                 alarm.setLinkedDetector(detectorPos);
-                tag.remove("StoredPos");
-                stack.set(DataComponents.CUSTOM_DATA, tag.isEmpty() ? null : tag);
+                tag.remove(STORED_POS_KEY);
+                if (tag.isEmpty()) stack.remove(DataComponents.CUSTOM_DATA);
+                else stack.set(DataComponents.CUSTOM_DATA, tag);
                 return InteractionResult.SUCCESS;
             }
         }

@@ -17,6 +17,7 @@ import net.minecraft.client.Minecraft;
 public class PollutionDetectorBlock extends Block implements EntityBlock {
     public PollutionDetectorBlock(Properties p) { super(p); }
 
+    @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new PollutionDetectorBlockEntity(pos, state);

@@ -24,6 +24,9 @@ public class AlarmBlock extends Block implements EntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return createTickerHelper(type, ModBlockEntities.ALARM_BLOCK.get(), AlarmBlockEntity::tick);
+        if (type == ModBlockEntities.ALARM_BLOCK.get()) {
+            return (BlockEntityTicker<T>)(BlockEntityTicker<AlarmBlockEntity>)AlarmBlockEntity::tick;
+        }
+        return null;
     }
 }
