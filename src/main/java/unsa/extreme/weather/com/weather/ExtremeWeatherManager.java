@@ -4,7 +4,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.core.BlockPos;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -13,11 +13,12 @@ public class ExtremeWeatherManager {
     private static final Map<String, Set<BlockPos>> safeZones = new ConcurrentHashMap<>();
     private static final Random random = new Random();
 
-    public static void init(IEventBus bus) {
-        bus.addListener(ExtremeWeatherManager::onLevelTick);
+    public static void init(IEventBus modBus) {
+        // 在 Forge 事件总线上监听 LevelTickEvent
+        NeoForge.EVENT_BUS.addListener(ExtremeWeatherManager::onLevelTick);
     }
 
-    private static void onLevelTick(LevelTickEvent.Post event) {
+    private static void onLevelTick(net.neoforged.neoforge.event.tick.LevelTickEvent.Post event) {
         if (event.getLevel() instanceof ServerLevel level) {
             tick(level);
         }
@@ -45,8 +46,8 @@ public class ExtremeWeatherManager {
     }
 
     public static double getCurrentChance(Level level) {
-        double base = 0.01; // 基础每日概率（每tick极低）
-        double pollutionMod = PollutionManager.getPollution(level) / 300.0; // 300%时翻倍
+        double base = 0.01;
+        double pollutionMod = PollutionManager.getPollution(level) / 300.0;
         return Math.min(base * pollutionMod, 0.05);
     }
 
@@ -102,7 +103,7 @@ public class ExtremeWeatherManager {
 
     private static int getDefaultDuration(ExtremeWeatherType type) {
         return switch (type) {
-            case EXTREME_THUNDERSTORM, SUPER_RAIN -> 24000 * (5 + random.nextInt(2)); // 5-6天
+            case EXTREME_THUNDERSTORM, SUPER_RAIN -> 24000 * (5 + random.nextInt(2));
             case SUPER_DROUGHT -> 24000 * (3 + random.nextInt(3));
             case EXTREME_SANDSTORM, EXTREME_BLIZZARD -> 24000 * (5 + random.nextInt(6));
             case SUPER_TYPHOON -> 24000 * (10 + random.nextInt(4));

@@ -3,7 +3,7 @@ package unsa.extreme.weather.com.weather;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -11,13 +11,13 @@ public class PollutionManager {
     private static final Map<String, Double> pollutionMap = new HashMap<>();
     private static final Map<String, Double> dailyIncreaseMap = new HashMap<>();
 
-    public static void init(IEventBus bus) {
-        bus.addListener(PollutionManager::onLevelTick);
+    public static void init(IEventBus modBus) {
+        // 在 Forge 事件总线上监听 LevelTickEvent
+        NeoForge.EVENT_BUS.addListener(PollutionManager::onLevelTick);
     }
 
-    private static void onLevelTick(LevelTickEvent.Post event) {
+    private static void onLevelTick(net.neoforged.neoforge.event.tick.LevelTickEvent.Post event) {
         if (event.getLevel() instanceof ServerLevel level) {
-            // 每天更新一次（简化：每24000 tick）
             if (level.getGameTime() % 24000 == 0) {
                 dailyTick(level);
             }
@@ -32,9 +32,6 @@ public class PollutionManager {
     }
 
     private static double calculateDailyIncrease(ServerLevel level) {
-        // 简化：计算相邻区块污染源
-        // 遍历加载区块中的篝火/火把等
-        // 此处返回模拟值
         return 0.5 + Math.random() * 0.5;
     }
 
