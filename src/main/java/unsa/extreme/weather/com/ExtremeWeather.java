@@ -1,10 +1,10 @@
 package unsa.extreme.weather.com;
 
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import unsa.extreme.weather.com.command.ExtremeWeatherCommand;
 import unsa.extreme.weather.com.config.ModConfigs;
@@ -20,19 +20,20 @@ import unsa.extreme.weather.com.network.ModPacketHandler;
 public class ExtremeWeather {
     public static final String MODID = "extreme_weather";
 
-    public ExtremeWeather(IEventBus bus, ModContainer container) {
-        ModBlocks.BLOCKS.register(bus);
-        ModItems.ITEMS.register(bus);
-        ModBlockEntities.BLOCK_ENTITIES.register(bus);
-        ModSounds.SOUNDS.register(bus);
+    public ExtremeWeather(IEventBus modBus, ModContainer container) {
+        ModBlocks.BLOCKS.register(modBus);
+        ModItems.ITEMS.register(modBus);
+        ModBlockEntities.BLOCK_ENTITIES.register(modBus);
+        ModSounds.SOUNDS.register(modBus);
         container.registerConfig(ModConfig.Type.SERVER, ModConfigs.SPEC);
-        ExtremeWeatherManager.init(bus);
-        PollutionManager.init(bus);
-        ModPacketHandler.register(bus);
-        bus.addListener(this::onRegisterCommands);
+        ExtremeWeatherManager.init(modBus);
+        PollutionManager.init(modBus);
+        ModPacketHandler.register(modBus);
+
+        // 命令注册必须放在游戏事件总线上
+        NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
     }
 
-    @SubscribeEvent
     private void onRegisterCommands(RegisterCommandsEvent event) {
         ExtremeWeatherCommand.register(event.getDispatcher());
     }
