@@ -2,6 +2,7 @@ package unsa.extreme.weather.com.weather;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
@@ -14,7 +15,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.Holder;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.storage.ServerLevelData;
-import net.minecraft.world.level.chunk.LevelChunk;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 import java.util.ArrayList;
@@ -139,31 +139,24 @@ public class ActiveExtremeWeather {
     }
 
     private void tickSuperRain(ServerLevel level) {
-        // 每5秒（100 ticks）执行一次
         if (remainingTicks % 100 != 0) return;
-        // 获取所有在线玩家
-        List<Player> players = level.players();
+        List<ServerPlayer> players = level.players();
         if (players.isEmpty()) return;
 
-        // 收集所有玩家渲染视距内的低洼处（空气，下方为实心方块）
+        int viewDistanceBlocks = level.getServer().getMaxPlayerViewDistance() * 16;
         List<BlockPos> validPositions = new ArrayList<>();
-        int viewDistance = level.getServer().getPlayerList().getViewDistance(); // 区块半径
-        for (Player player : players) {
+        for (ServerPlayer player : players) {
             BlockPos playerPos = player.blockPosition();
-            int minX = playerPos.getX() - (viewDistance * 16);
-            int maxX = playerPos.getX() + (viewDistance * 16);
-            int minZ = playerPos.getZ() - (viewDistance * 16);
-            int maxZ = playerPos.getZ() + (viewDistance * 16);
-            // 遍历范围内的所有方块（简化：只检查水平范围，高度取玩家附近y）
-            for (int x = minX; x <= maxX; x += 4) { // 步长4以减少计算量
+            int minX = playerPos.getX() - viewDistanceBlocks;
+            int maxX = playerPos.getX() + viewDistanceBlocks;
+            int minZ = playerPos.getZ() - viewDistanceBlocks;
+            int maxZ = playerPos.getZ() + viewDistanceBlocks;
+            for (int x = minX; x <= maxX; x += 4) {
                 for (int z = minZ; z <= maxZ; z += 4) {
-                    // 获取该列的地表高度
                     BlockPos.MutableBlockPos checkPos = new BlockPos.MutableBlockPos(x, playerPos.getY(), z);
-                    // 向下搜索直到找到地面
                     while (checkPos.getY() > level.getMinBuildHeight() && level.getBlockState(checkPos).isAir()) {
                         checkPos.setY(checkPos.getY() - 1);
                     }
-                    // 此时checkPos是地面方块，其上应为空气
                     BlockPos airPos = checkPos.above();
                     BlockState groundState = level.getBlockState(checkPos);
                     if (level.getBlockState(airPos).isAir() && groundState.isCollisionShapeFullBlock(level, checkPos)) {
@@ -174,19 +167,16 @@ public class ActiveExtremeWeather {
         }
 
         if (validPositions.isEmpty()) return;
-
-        // 随机打乱并取最多10个位置
         Collections.shuffle(validPositions, RANDOM);
         int toFill = Math.min(10, validPositions.size());
         for (int i = 0; i < toFill; i++) {
-            BlockPos pos = validPositions.get(i);
-            level.setBlock(pos, Blocks.WATER.defaultBlockState(), 3);
+            level.setBlock(validPositions.get(i), Blocks.WATER.defaultBlockState(), 3);
         }
     }
 
     private void tickThunderstorm(ServerLevel level) {
         if (level.random.nextFloat() < 0.7f) {
-            for (Player player : level.players()) {
+            for (ServerPlayer player : level.players()) {
                 if (isInRange(player.blockPosition())) {
                     BlockPos pos = player.blockPosition().offset(
                         level.random.nextInt(20) - 10, 0, level.random.nextInt(20) - 10);
@@ -199,7 +189,7 @@ public class ActiveExtremeWeather {
     }
 
     private void tickSuperDrought(ServerLevel level) {
-        for (Player player : level.players()) {
+        for (ServerPlayer player : level.players()) {
             if (!isInRange(player.blockPosition())) continue;
             boolean exposed = level.canSeeSky(player.blockPosition());
             if (exposed) {
