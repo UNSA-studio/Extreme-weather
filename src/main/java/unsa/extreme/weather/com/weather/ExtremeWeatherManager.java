@@ -2,7 +2,9 @@ package unsa.extreme.weather.com.weather;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.neoforged.bus.api.IEventBus;
@@ -36,12 +38,9 @@ public class ExtremeWeatherManager {
         } else {
             double chance = getCurrentChance(level);
             if (random.nextDouble() < chance) {
-                // 根据当前生物群系选择天气类型
-                // 取世界出生点附近的地形作为参考
                 BlockPos spawn = level.getSharedSpawnPos();
                 ExtremeWeatherType type = chooseTypeByBiome(level, spawn);
-                if (type == null) return; // 极端情况：全都不适合生成
-
+                if (type == null) return;
                 int duration = getDefaultDuration(type);
                 ActiveExtremeWeather newWeather = new ActiveExtremeWeather(type, duration);
                 newWeather.begin(level);
@@ -50,49 +49,48 @@ public class ExtremeWeatherManager {
         }
     }
 
-    /**
-     * 根据生物群系返回各天气权重，总和为1.0
-     */
     private static Map<ExtremeWeatherType, Double> getBiomeWeights(Biome biome) {
         Map<ExtremeWeatherType, Double> weights = new EnumMap<>(ExtremeWeatherType.class);
-        var cat = biome.getBiomeCategory();
-
-        switch (cat) {
-            case OCEAN, RIVER, BEACH:
-                weights.put(ExtremeWeatherType.SUPER_TYPHOON, 0.60);
-                weights.put(ExtremeWeatherType.SUPER_RAIN, 0.25);
-                weights.put(ExtremeWeatherType.EXTREME_THUNDERSTORM, 0.10);
-                weights.put(ExtremeWeatherType.EXTREME_BLIZZARD, 0.05);
-                // 沙尘暴、干旱 0
-                break;
-            case PLAINS, SAVANNA, MESA, DESERT:
-                weights.put(ExtremeWeatherType.EXTREME_THUNDERSTORM, 0.30);
-                weights.put(ExtremeWeatherType.SUPER_RAIN, 0.25);
-                weights.put(ExtremeWeatherType.EXTREME_SANDSTORM, 0.25);
-                weights.put(ExtremeWeatherType.SUPER_DROUGHT, 0.15);
-                weights.put(ExtremeWeatherType.EXTREME_BLIZZARD, 0.05);
-                // 台风 0
-                break;
-            case ICY, TAIGA:
-                weights.put(ExtremeWeatherType.EXTREME_BLIZZARD, 0.50);
-                weights.put(ExtremeWeatherType.SUPER_RAIN, 0.15);
-                weights.put(ExtremeWeatherType.EXTREME_THUNDERSTORM, 0.15);
-                weights.put(ExtremeWeatherType.EXTREME_SANDSTORM, 0.10);
-                weights.put(ExtremeWeatherType.SUPER_DROUGHT, 0.10);
-                // 台风 0
-                break;
-            case FOREST, JUNGLE, MUSHROOM, SWAMP:
-                weights.put(ExtremeWeatherType.SUPER_RAIN, 0.35);
-                weights.put(ExtremeWeatherType.EXTREME_THUNDERSTORM, 0.30);
-                weights.put(ExtremeWeatherType.EXTREME_SANDSTORM, 0.15);
-                weights.put(ExtremeWeatherType.SUPER_DROUGHT, 0.10);
-                weights.put(ExtremeWeatherType.EXTREME_BLIZZARD, 0.10);
-                break;
-            default:
-                // 均匀分布
-                for (ExtremeWeatherType type : ExtremeWeatherType.values()) {
-                    weights.put(type, 1.0 / ExtremeWeatherType.values().length);
-                }
+        Holder<Biome> holder = Holder.direct(biome);
+        // 使用原版生物群系标签来判断大类型
+        if (holder.is(BiomeTags.IS_OCEAN)) {
+            weights.put(ExtremeWeatherType.SUPER_TYPHOON, 0.60);
+            weights.put(ExtremeWeatherType.SUPER_RAIN, 0.25);
+            weights.put(ExtremeWeatherType.EXTREME_THUNDERSTORM, 0.10);
+            weights.put(ExtremeWeatherType.EXTREME_BLIZZARD, 0.05);
+        } else if (holder.is(BiomeTags.IS_BEACH) || holder.is(BiomeTags.IS_RIVER)) {
+            weights.put(ExtremeWeatherType.SUPER_RAIN, 0.30);
+            weights.put(ExtremeWeatherType.EXTREME_THUNDERSTORM, 0.30);
+            weights.put(ExtremeWeatherType.SUPER_TYPHOON, 0.20);
+            weights.put(ExtremeWeatherType.EXTREME_BLIZZARD, 0.10);
+        } else if (holder.is(BiomeTags.IS_MOUNTAIN) || holder.is(BiomeTags.IS_HILL)) {
+            weights.put(ExtremeWeatherType.EXTREME_BLIZZARD, 0.35);
+            weights.put(ExtremeWeatherType.EXTREME_THUNDERSTORM, 0.25);
+            weights.put(ExtremeWeatherType.SUPER_RAIN, 0.20);
+            weights.put(ExtremeWeatherType.EXTREME_SANDSTORM, 0.15);
+            weights.put(ExtremeWeatherType.SUPER_DROUGHT, 0.05);
+        } else if (holder.is(BiomeTags.IS_FOREST) || holder.is(BiomeTags.IS_JUNGLE)) {
+            weights.put(ExtremeWeatherType.SUPER_RAIN, 0.35);
+            weights.put(ExtremeWeatherType.EXTREME_THUNDERSTORM, 0.30);
+            weights.put(ExtremeWeatherType.EXTREME_SANDSTORM, 0.15);
+            weights.put(ExtremeWeatherType.SUPER_DROUGHT, 0.10);
+            weights.put(ExtremeWeatherType.EXTREME_BLIZZARD, 0.10);
+        } else if (holder.is(BiomeTags.IS_TAIGA)) {
+            weights.put(ExtremeWeatherType.EXTREME_BLIZZARD, 0.50);
+            weights.put(ExtremeWeatherType.SUPER_RAIN, 0.15);
+            weights.put(ExtremeWeatherType.EXTREME_THUNDERSTORM, 0.15);
+            weights.put(ExtremeWeatherType.EXTREME_SANDSTORM, 0.10);
+            weights.put(ExtremeWeatherType.SUPER_DROUGHT, 0.10);
+        } else if (holder.is(BiomeTags.IS_NETHER) || holder.is(BiomeTags.IS_END)) {
+            // nether/end 不生成
+            return weights;
+        } else {
+            // 其他（平原、草原等）
+            weights.put(ExtremeWeatherType.EXTREME_THUNDERSTORM, 0.30);
+            weights.put(ExtremeWeatherType.SUPER_RAIN, 0.25);
+            weights.put(ExtremeWeatherType.EXTREME_SANDSTORM, 0.25);
+            weights.put(ExtremeWeatherType.SUPER_DROUGHT, 0.15);
+            weights.put(ExtremeWeatherType.EXTREME_BLIZZARD, 0.05);
         }
         return weights;
     }
@@ -101,18 +99,15 @@ public class ExtremeWeatherManager {
         Holder<Biome> holder = level.getBiome(pos);
         Biome biome = holder.value();
         Map<ExtremeWeatherType, Double> weights = getBiomeWeights(biome);
-
         double total = weights.values().stream().mapToDouble(Double::doubleValue).sum();
         if (total <= 0) return null;
         double r = random.nextDouble() * total;
         double cumulative = 0;
         for (Map.Entry<ExtremeWeatherType, Double> entry : weights.entrySet()) {
             cumulative += entry.getValue();
-            if (r <= cumulative) {
-                return entry.getKey();
-            }
+            if (r <= cumulative) return entry.getKey();
         }
-        return ExtremeWeatherType.SUPER_RAIN; // 保底
+        return ExtremeWeatherType.SUPER_RAIN;
     }
 
     public static double getCurrentChance(Level level) {
@@ -136,9 +131,7 @@ public class ExtremeWeatherManager {
             BlockPos awCenter = aw.getCenter();
             int dx = Math.abs(awCenter.getX() - center.getX()) >> 4;
             int dz = Math.abs(awCenter.getZ() - center.getZ()) >> 4;
-            if (dx < chunkRadius && dz < chunkRadius) {
-                result.add(aw);
-            }
+            if (dx < chunkRadius && dz < chunkRadius) result.add(aw);
         }
         return result;
     }
