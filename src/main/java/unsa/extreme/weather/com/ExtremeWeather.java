@@ -12,6 +12,7 @@ import unsa.extreme.weather.com.init.ModBlocks;
 import unsa.extreme.weather.com.init.ModItems;
 import unsa.extreme.weather.com.init.ModBlockEntities;
 import unsa.extreme.weather.com.init.ModSounds;
+import unsa.extreme.weather.com.init.ModCreativeTabs;
 import unsa.extreme.weather.com.weather.ExtremeWeatherManager;
 import unsa.extreme.weather.com.weather.PollutionManager;
 import unsa.extreme.weather.com.network.ModPacketHandler;
@@ -25,12 +26,12 @@ public class ExtremeWeather {
         ModItems.ITEMS.register(modBus);
         ModBlockEntities.BLOCK_ENTITIES.register(modBus);
         ModSounds.SOUNDS.register(modBus);
+        ModCreativeTabs.TABS.register(modBus);
         container.registerConfig(ModConfig.Type.SERVER, ModConfigs.SPEC);
         ExtremeWeatherManager.init(modBus);
         PollutionManager.init(modBus);
         ModPacketHandler.register(modBus);
 
-        // 命令注册必须放在游戏事件总线上
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
     }
 
