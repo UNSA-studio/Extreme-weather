@@ -9,12 +9,13 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ExtremeWeatherManager {
+    // 每个维度的冷却剩余tick（距离下次允许触发还有多久）
+    private static final Map<String, Integer> cooldown = new ConcurrentHashMap<>();
+    // 活跃天气
     private static final Map<String, ActiveExtremeWeather> activeWeathers = new ConcurrentHashMap<>();
-    private static final Map<String, Set<BlockPos>> safeZones = new ConcurrentHashMap<>();
     private static final Random random = new Random();
 
     public static void init(IEventBus modBus) {
-        // 在 Forge 事件总线上监听 LevelTickEvent
         NeoForge.EVENT_BUS.addListener(ExtremeWeatherManager::onLevelTick);
     }
 
@@ -32,28 +33,39 @@ public class ExtremeWeatherManager {
             if (current.isExpired()) {
                 current.end(level);
                 activeWeathers.remove(dim);
+                // 天气结束后进入5天冷却
+                cooldown.put(dim, 120000); // 5天 = 120000 ticks
             }
-        } else {
-            double chance = getCurrentChance(level);
-            if (random.nextDouble() < chance) {
-                ExtremeWeatherType type = chooseRandomType();
-                int duration = getDefaultDuration(type);
-                ActiveExtremeWeather newWeather = new ActiveExtremeWeather(type, duration);
-                newWeather.begin(level);
-                activeWeathers.put(dim, newWeather);
-            }
+            return; // 有天气时不触发新天气
+        }
+
+        // 处理冷却
+        int cd = cooldown.getOrDefault(dim, 0);
+        if (cd > 0) {
+            cooldown.put(dim, --cd);
+            return; // 冷却中不触发
+        }
+
+        // 冷却结束，尝试触发新天气
+        double chance = getCurrentChance(level);
+        if (random.nextDouble() < chance) {
+            // 进入征兆阶段（持续1天 = 24000 ticks）
+            ExtremeWeatherType type = chooseRandomType();
+            ActiveExtremeWeather weather = new ActiveExtremeWeather(type, -1); // -1 表示还在征兆
+            weather.beginOmen(level);
+            activeWeathers.put(dim, weather);
         }
     }
 
+    /** 根据污染值计算触发概率：污染300%时概率70%，线性映射 */
     public static double getCurrentChance(Level level) {
-        double base = 0.01;
-        double pollutionMod = PollutionManager.getPollution(level) / 300.0;
-        return Math.min(base * pollutionMod, 0.05);
+        double pollution = PollutionManager.getPollution(level);
+        return Math.min(0.7, pollution * 0.7 / 300.0);
     }
 
     public static Map<ExtremeWeatherType, Double> getCurrentProbabilities(Level level) {
         Map<ExtremeWeatherType, Double> map = new EnumMap<>(ExtremeWeatherType.class);
-        double base = getCurrentChance(level);
+        double base = getCurrentChance(level) / 6.0; // 平均分给6种天气
         for (ExtremeWeatherType type : ExtremeWeatherType.values()) {
             map.put(type, base);
         }
@@ -61,17 +73,25 @@ public class ExtremeWeatherManager {
     }
 
     public static boolean isWeatherActive(Level level) {
-        return activeWeathers.containsKey(level.dimension().location().toString());
+        String dim = level.dimension().location().toString();
+        return activeWeathers.containsKey(dim);
     }
 
+    /** 未来若干tick内是否会爆发极端天气（用于报警器） */
     public static boolean isExtremeWeatherImminent(Level level, int ticksInFuture) {
         String dim = level.dimension().location().toString();
-        ActiveExtremeWeather curr = activeWeathers.get(dim);
-        if (curr != null && curr.remainingTicks <= ticksInFuture) return true;
-        double chance = getCurrentChance(level);
-        return random.nextDouble() < chance * (ticksInFuture / 1200.0);
+        ActiveExtremeWeather current = activeWeathers.get(dim);
+        if (current != null) {
+            if (current.isOmenPhase()) return true; // 征兆阶段也算即将爆发
+            return current.remainingTicks <= ticksInFuture;
+        }
+        // 冷却中则不算
+        if (cooldown.getOrDefault(dim, 0) > 0) return false;
+        // 冷却结束但有概率触发
+        return random.nextDouble() < getCurrentChance(level) * (ticksInFuture / 1200.0);
     }
 
+    /** 指令强制开启天气（跳过冷却和征兆） */
     public static void forceStartWeather(Level level, ExtremeWeatherType type) {
         String dim = level.dimension().location().toString();
         ActiveExtremeWeather existing = activeWeathers.get(dim);
@@ -79,21 +99,25 @@ public class ExtremeWeatherManager {
         ActiveExtremeWeather weather = new ActiveExtremeWeather(type, getDefaultDuration(type));
         weather.begin(level);
         activeWeathers.put(dim, weather);
+        cooldown.remove(dim); // 强制清除冷却
     }
 
+    /** 指令结束天气 */
     public static void forceEndWeather(Level level) {
         String dim = level.dimension().location().toString();
         ActiveExtremeWeather current = activeWeathers.remove(dim);
-        if (current != null) current.end(level);
+        if (current != null) {
+            current.end(level);
+            cooldown.put(dim, 120000); // 仍需要冷却
+        }
     }
 
     public static void addSafeZone(Level level, BlockPos center, int radius) {
-        safeZones.computeIfAbsent(level.dimension().location().toString(), k -> new HashSet<>()).add(center);
+        // 未实现
     }
 
     public static void removeSafeZone(Level level, BlockPos center) {
-        Set<BlockPos> zones = safeZones.get(level.dimension().location().toString());
-        if (zones != null) zones.remove(center);
+        // 未实现
     }
 
     private static ExtremeWeatherType chooseRandomType() {
