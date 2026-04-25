@@ -21,7 +21,6 @@ public class ExtremeWeatherManager {
 
     private static void onLevelTick(net.neoforged.neoforge.event.tick.LevelTickEvent.Post event) {
         if (event.getLevel() instanceof ServerLevel level) {
-            // 只处理主世界
             if (level.dimension() != Level.OVERWORLD) return;
             tick(level);
         }
@@ -50,6 +49,14 @@ public class ExtremeWeatherManager {
         }
     }
 
+    public static double getCurrentChance(Level level) {
+        // 基础概率 70%，污染放大系数
+        double base = 0.70;
+        double pollutionFactor = PollutionManager.getPollution(level) / 300.0; // 300%时为1.0
+        return Math.min(base * pollutionFactor, 1.0);
+    }
+
+    // ... 其余方法保持不变 ...
     private static Map<ExtremeWeatherType, Double> getBiomeWeights(Biome biome) {
         Map<ExtremeWeatherType, Double> weights = new EnumMap<>(ExtremeWeatherType.class);
         Holder<Biome> holder = Holder.direct(biome);
@@ -82,7 +89,6 @@ public class ExtremeWeatherManager {
             weights.put(ExtremeWeatherType.EXTREME_SANDSTORM, 0.10);
             weights.put(ExtremeWeatherType.SUPER_DROUGHT, 0.10);
         } else if (holder.is(BiomeTags.IS_NETHER) || holder.is(BiomeTags.IS_END)) {
-            // nether/end 不生成
             return weights;
         } else {
             weights.put(ExtremeWeatherType.EXTREME_THUNDERSTORM, 0.30);
@@ -109,20 +115,13 @@ public class ExtremeWeatherManager {
         return ExtremeWeatherType.SUPER_RAIN;
     }
 
-    public static double getCurrentChance(Level level) {
-        double base = 0.01;
-        double pollutionMod = PollutionManager.getPollution(level) / 300.0;
-        return Math.min(base * pollutionMod, 0.05);
-    }
-
+    // ... 后面的方法与之前相同 ...
     public static boolean isWeatherActive(Level level) {
         return activeWeathers.containsKey(level.dimension().location().toString());
     }
-
     public static ActiveExtremeWeather getActiveWeather(Level level) {
         return activeWeathers.get(level.dimension().location().toString());
     }
-
     public static List<ActiveExtremeWeather> getWeathersInRadius(Level level, BlockPos center, int chunkRadius) {
         List<ActiveExtremeWeather> result = new ArrayList<>();
         ActiveExtremeWeather aw = getActiveWeather(level);
@@ -134,14 +133,12 @@ public class ExtremeWeatherManager {
         }
         return result;
     }
-
     public static boolean isExtremeWeatherImminent(Level level, int ticksInFuture) {
         ActiveExtremeWeather curr = getActiveWeather(level);
         if (curr != null && curr.remainingTicks <= ticksInFuture) return true;
         double chance = getCurrentChance(level);
         return random.nextDouble() < chance * (ticksInFuture / 1200.0);
     }
-
     public static void forceStartWeather(Level level, ExtremeWeatherType type) {
         String dim = level.dimension().location().toString();
         ActiveExtremeWeather existing = activeWeathers.get(dim);
@@ -150,16 +147,13 @@ public class ExtremeWeatherManager {
         weather.begin(level);
         activeWeathers.put(dim, weather);
     }
-
     public static void forceEndWeather(Level level) {
         String dim = level.dimension().location().toString();
         ActiveExtremeWeather current = activeWeathers.remove(dim);
         if (current != null) current.end(level);
     }
-
     public static void addSafeZone(Level level, BlockPos center, int radius) {}
     public static void removeSafeZone(Level level, BlockPos center) {}
-
     public static Map<ExtremeWeatherType, Double> getCurrentProbabilities(Level level) {
         Map<ExtremeWeatherType, Double> map = new EnumMap<>(ExtremeWeatherType.class);
         double base = getCurrentChance(level);
@@ -168,7 +162,6 @@ public class ExtremeWeatherManager {
         }
         return map;
     }
-
     private static int getDefaultDuration(ExtremeWeatherType type) {
         return switch (type) {
             case EXTREME_THUNDERSTORM, SUPER_RAIN -> 24000 * (5 + random.nextInt(2));

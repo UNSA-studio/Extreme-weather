@@ -12,6 +12,7 @@ import net.minecraft.world.item.ArmorMaterial;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.Holder;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.storage.ServerLevelData;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 import java.util.Random;
@@ -23,7 +24,6 @@ public class ActiveExtremeWeather {
     public final ExtremeWeatherType type;
     public int remainingTicks;
     private boolean active;
-
     private BlockPos center;
     private int radius;
     private Vec3 moveDirection;
@@ -48,25 +48,80 @@ public class ActiveExtremeWeather {
             radius = getDefaultRadius();
             speed = 0.02 + RANDOM.nextDouble() * 0.02;
             updateDirectionToNearestPlayer(serverLevel);
+
+            // 设置原版天气
+            ServerLevelData data = (ServerLevelData) serverLevel.getLevelData();
+            switch (type) {
+                case EXTREME_THUNDERSTORM:
+                    data.setRaining(true);
+                    data.setThundering(true);
+                    data.setRainTime(remainingTicks);
+                    data.setThunderTime(remainingTicks);
+                    break;
+                case SUPER_RAIN:
+                    data.setRaining(true);
+                    data.setThundering(false);
+                    data.setRainTime(remainingTicks);
+                    break;
+                case EXTREME_BLIZZARD:
+                    data.setRaining(true); // 暴风雪表现为下雪，但需要生物群系支持；可以使用 raining 但调用下雪粒子还需额外处理
+                    data.setThundering(false);
+                    data.setRainTime(remainingTicks);
+                    break;
+                case SUPER_DROUGHT:
+                case EXTREME_SANDSTORM:
+                case SUPER_TYPHOON:
+                    // 这些天气不改变原版 rain/thunder 状态，或设置为晴天
+                    data.setRaining(false);
+                    data.setThundering(false);
+                    break;
+            }
             LOGGER.info("Extreme weather {} started at {} radius {}", type.name(), center, radius);
         }
     }
 
     public void end(Level level) {
         active = false;
-        if (!level.isClientSide) LOGGER.info("Extreme weather ended: {}", type.name());
+        if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
+            // 恢复原版天气
+            ServerLevelData data = (ServerLevelData) serverLevel.getLevelData();
+            data.setRaining(false);
+            data.setThundering(false);
+            data.setRainTime(0);
+            data.setThunderTime(0);
+        }
+        LOGGER.info("Extreme weather ended: {}", type.name());
     }
 
     public void tick(ServerLevel level) {
         if (!active) return;
         remainingTicks--;
 
-        // 每5秒更新一次方向，以追击最近玩家
+        // 维持原版天气状态（确保不会中途被其他模组意外重置）
+        ServerLevelData data = (ServerLevelData) level.getLevelData();
+        switch (type) {
+            case EXTREME_THUNDERSTORM:
+                if (!data.isRaining()) data.setRaining(true);
+                if (!data.isThundering()) data.setThundering(true);
+                data.setRainTime(remainingTicks);
+                data.setThunderTime(remainingTicks);
+                break;
+            case SUPER_RAIN:
+            case EXTREME_BLIZZARD:
+                if (!data.isRaining()) data.setRaining(true);
+                data.setRainTime(remainingTicks);
+                break;
+            case SUPER_DROUGHT:
+            case EXTREME_SANDSTORM:
+            case SUPER_TYPHOON:
+                if (data.isRaining()) data.setRaining(false);
+                if (data.isThundering()) data.setThundering(false);
+                break;
+        }
+
         if (remainingTicks % 100 == 0) {
             updateDirectionToNearestPlayer(level);
         }
-
-        // 移动中心
         if (moveDirection != null && center != null) {
             Vec3 newCenter = Vec3.atCenterOf(center).add(moveDirection.scale(speed));
             center = BlockPos.containing(newCenter.x, newCenter.y, newCenter.z);
@@ -86,10 +141,8 @@ public class ActiveExtremeWeather {
         Player nearest = findNearestPlayer(level, center);
         if (nearest != null) {
             if (RANDOM.nextDouble() < 0.15) {
-                // 15% 概率随机移动
                 moveDirection = new Vec3(RANDOM.nextDouble() - 0.5, 0, RANDOM.nextDouble() - 0.5).normalize();
             } else {
-                // 追踪最近玩家
                 Vec3 toPlayer = nearest.position().subtract(Vec3.atCenterOf(center));
                 moveDirection = toPlayer.normalize();
             }
