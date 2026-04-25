@@ -2,7 +2,6 @@ package unsa.extreme.weather.com.network;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -11,8 +10,6 @@ import unsa.extreme.weather.com.ExtremeWeather;
 import unsa.extreme.weather.com.weather.ExtremeWeatherType;
 import unsa.extreme.weather.com.weather.ActiveExtremeWeather;
 import net.minecraft.world.phys.Vec3;
-
-import java.util.Optional;
 
 public class WeatherSyncPacket implements CustomPacketPayload {
     public static final CustomPacketPayload.Type<WeatherSyncPacket> TYPE =
@@ -57,7 +54,7 @@ public class WeatherSyncPacket implements CustomPacketPayload {
         @Override
         public WeatherSyncPacket decode(ByteBuf buf) {
             boolean active = buf.readBoolean();
-            String typeName = ByteBufCodecs.STRING_UTF8.read(buf);
+            String typeName = buf.readUtf();
             ExtremeWeatherType wtype = typeName.isEmpty() ? null : ExtremeWeatherType.valueOf(typeName);
             long pos = buf.readLong();
             BlockPos center = pos == 0 ? null : BlockPos.of(pos);
@@ -71,7 +68,7 @@ public class WeatherSyncPacket implements CustomPacketPayload {
         @Override
         public void encode(ByteBuf buf, WeatherSyncPacket packet) {
             buf.writeBoolean(packet.active);
-            ByteBufCodecs.STRING_UTF8.write(buf, packet.weatherType == null ? "" : packet.weatherType.name());
+            buf.writeUtf(packet.weatherType == null ? "" : packet.weatherType.name());
             buf.writeLong(packet.center == null ? 0 : packet.center.asLong());
             buf.writeInt(packet.radius);
             buf.writeDouble(packet.moveX);
@@ -84,7 +81,6 @@ public class WeatherSyncPacket implements CustomPacketPayload {
         ctx.enqueueWork(() -> ClientWeatherData.updateFromPacket(packet));
     }
 
-    // getters for ClientWeatherData
     public boolean isActive() { return active; }
     public ExtremeWeatherType getWeatherType() { return weatherType; }
     public BlockPos getCenter() { return center; }

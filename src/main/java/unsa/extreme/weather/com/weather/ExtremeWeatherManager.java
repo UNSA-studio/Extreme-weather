@@ -40,7 +40,7 @@ public class ExtremeWeatherManager {
                 current.end(level);
                 activeWeathers.remove(dim);
                 // 发送天气结束包
-                PacketDistributor.sendToAllPlayers(WeatherSyncPacket.clear());
+                PacketDistributor.sendToAllPlayers(WeatherSyncPacket.createClear());
             } else {
                 // 每 100 ticks (5秒) 同步一次天气数据
                 if (current.remainingTicks % 100 == 0) {
@@ -106,7 +106,7 @@ public class ExtremeWeatherManager {
         String dim = level.dimension().location().toString();
         ActiveExtremeWeather current = activeWeathers.remove(dim);
         if (current != null) current.end(level);
-        PacketDistributor.sendToAllPlayers(WeatherSyncPacket.clear());
+        PacketDistributor.sendToAllPlayers(WeatherSyncPacket.createClear());
     }
     public static void addSafeZone(Level level, BlockPos center, int radius) {}
     public static void removeSafeZone(Level level, BlockPos center) {}
