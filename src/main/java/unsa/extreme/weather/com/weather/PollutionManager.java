@@ -9,10 +9,13 @@ import net.minecraft.world.level.block.FireBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
-
+import net.minecraft.world.level.ChunkPos;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,7 +29,6 @@ public class PollutionManager {
 
     private static void onLevelTick(LevelTickEvent.Post event) {
         if (event.getLevel() instanceof ServerLevel level) {
-            // 只处理主世界
             if (level.dimension() != Level.OVERWORLD) return;
             if (level.getGameTime() % 24000 == 0) {
                 dailyTick(level);
@@ -43,8 +45,23 @@ public class PollutionManager {
 
     private static double calculateDailyIncrease(ServerLevel level) {
         double increase = 0.0;
-        for (LevelChunk chunk : level.getChunkSource().getLoadedChunks()) {
-            increase += scanChunk(chunk);
+        // 收集所有玩家附近的已加载区块位置
+        Set<ChunkPos> loadedChunks = new HashSet<>();
+        for (Player player : level.players()) {
+            ChunkPos playerChunk = new ChunkPos(player.blockPosition());
+            // 添加玩家所在区块及其周围 1 格区块（模拟玩家加载范围）
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    loadedChunks.add(new ChunkPos(playerChunk.x + dx, playerChunk.z + dz));
+                }
+            }
+        }
+        // 对每个区块进行扫描
+        for (ChunkPos chunkPos : loadedChunks) {
+            LevelChunk chunk = level.getChunkSource().getChunkNow(chunkPos.x, chunkPos.z);
+            if (chunk != null) {
+                increase += scanChunk(chunk);
+            }
         }
         return increase;
     }
