@@ -12,8 +12,6 @@ import net.minecraft.world.item.ArmorMaterials;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.Holder;
 import net.minecraft.world.item.ArmorMaterial;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 
@@ -22,50 +20,56 @@ public class ActiveExtremeWeather {
     public final ExtremeWeatherType type;
     public int remainingTicks;
     private boolean active = false;
-    private boolean omenPhase = true; // 默认为征兆阶段，直到begin被调用
+    private boolean omenPhase = false;
 
-    // 使用 -1 表示仍在征兆中
     public ActiveExtremeWeather(ExtremeWeatherType type, int duration) {
         this.type = type;
-        this.remainingTicks = duration > 0 ? duration : 24000; // 征兆默认1天
         this.omenPhase = duration <= 0;
+        this.remainingTicks = duration > 0 ? duration : 24000;
     }
 
-    /** 开始征兆（启动） */
+    /** 征兆阶段 */
     public void beginOmen(Level level) {
         omenPhase = true;
-        remainingTicks = 24000; // 征兆持续1天
+        active = false;
+        remainingTicks = 24000;
         if (!level.isClientSide)
-            LOGGER.info("Extreme weather omens started: {}", type.name());
-        applyOmenEffects(level);
+            LOGGER.info("Omen started: {}", type.name());
     }
 
-    /** 正式开始（征兆结束后或强制触发） */
+    /** 正式爆发 */
     public void begin(Level level) {
         omenPhase = false;
         active = true;
-        if (!level.isClientSide)
+        remainingTicks = getDefaultDuration();
+        if (!level.isClientSide) {
             LOGGER.info("Extreme weather started: {}", type.name());
+            if (level instanceof ServerLevel sl) {
+                switch (type) {
+                    case EXTREME_THUNDERSTORM -> sl.setWeatherParameters(6000, 72000, true, true);
+                    case SUPER_RAIN -> sl.setWeatherParameters(6000, 72000, true, false);
+                    case EXTREME_BLIZZARD -> sl.setWeatherParameters(6000, 72000, true, false);
+                    case SUPER_TYPHOON -> sl.setWeatherParameters(6000, 72000, true, false);
+                }
+            }
+        }
     }
 
-    /** 结束 */
     public void end(Level level) {
         active = false;
         omenPhase = false;
-        if (!level.isClientSide)
+        if (!level.isClientSide) {
             LOGGER.info("Extreme weather ended: {}", type.name());
-        // 恢复原版天气
-        level.setWeatherParameters(0, 0, false, false);
+            if (level instanceof ServerLevel sl)
+                sl.setWeatherParameters(0, 0, false, false);
+        }
     }
 
     public void tick(ServerLevel level) {
         remainingTicks--;
         if (omenPhase) {
             if (remainingTicks <= 0) {
-                // 征兆结束，正式爆发
                 begin(level);
-                remainingTicks = getDefaultDuration();
-                applyBeginningEffects(level);
             } else {
                 tickOmen(level);
             }
@@ -83,45 +87,30 @@ public class ActiveExtremeWeather {
         }
     }
 
-    /* ---------- 征兆效果 ---------- */
     private void tickOmen(ServerLevel level) {
         switch (type) {
             case EXTREME_THUNDERSTORM:
-                // 天空变暗
                 level.setWeatherParameters(Math.min(300, 300), 0, false, true);
                 break;
             case SUPER_RAIN:
                 level.setWeatherParameters(300, 0, true, false);
                 break;
             case EXTREME_BLIZZARD:
-                // 逐渐下小雪
-                int progress = 1 - remainingTicks / 24000;
-                level.setWeatherParameters(progress * 500, 0, true, false);
+                int progress = remainingTicks / 24000;
+                level.setWeatherParameters(300, 0, true, false);
                 break;
             case SUPER_DROUGHT:
-                // 给予室外玩家炎热效果（不可自动消除）
                 for (Player player : level.players()) {
                     if (level.canSeeSky(player.blockPosition())) {
-                        player.addEffect(new MobEffectInstance(MobEffects.BURNING, 100, 0, false, true));
+                        player.setRemainingFireTicks(200);
                     }
                 }
                 break;
             case SUPER_TYPHOON:
-                // 云几乎消失
                 level.setWeatherParameters(0, 0, false, false);
                 break;
             default:
                 break;
-        }
-    }
-
-    /* ---------- 天气正式爆发后的效果 ---------- */
-    private void applyBeginningEffects(ServerLevel level) {
-        switch (type) {
-            case EXTREME_THUNDERSTORM -> level.setWeatherParameters(300, 72000, true, true);
-            case SUPER_RAIN -> level.setWeatherParameters(300, 72000, true, false);
-            case EXTREME_BLIZZARD -> level.setWeatherParameters(300, 72000, true, false); // 雪
-            case SUPER_TYPHOON -> level.setWeatherParameters(300, 72000, true, false);
         }
     }
 
@@ -152,7 +141,7 @@ public class ActiveExtremeWeather {
     private void tickSuperDrought(ServerLevel level) {
         for (Player player : level.players()) {
             if (level.canSeeSky(player.blockPosition())) {
-                player.addEffect(new MobEffectInstance(MobEffects.BURNING, 200, 0, false, true));
+                player.setRemainingFireTicks(300);
             }
         }
     }
@@ -161,21 +150,7 @@ public class ActiveExtremeWeather {
     private void tickBlizzard(ServerLevel level) {}
     private void tickTyphoon(ServerLevel level) {}
 
-    private int getArmorProtection(Player player) {
-        int protection = 0;
-        for (ItemStack armor : player.getArmorSlots()) {
-            if (armor.getItem() instanceof ArmorItem ai) {
-                Holder<ArmorMaterial> holder = ai.getMaterial();
-                ArmorMaterial mat = holder.value();
-                if (mat == ArmorMaterials.IRON.value() || mat == ArmorMaterials.DIAMOND.value() || mat == ArmorMaterials.NETHERITE.value()) {
-                    protection++;
-                }
-            }
-        }
-        return protection;
-    }
-
-    public boolean isExpired() { return remainingTicks <= 0; }
+    public boolean isExpired() { return remainingTicks <= 0 && !omenPhase; }
     public boolean isOmenPhase() { return omenPhase; }
 
     private int getDefaultDuration() {
