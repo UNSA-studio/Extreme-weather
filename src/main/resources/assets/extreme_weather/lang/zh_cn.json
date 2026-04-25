@@ -1,0 +1,19 @@
+{
+    "block.extreme_weather.weather_station": "探测站",
+    "block.extreme_weather.extreme_weather_detector": "极端气象检测仪",
+    "block.extreme_weather.alarm_block": "报警器",
+    "block.extreme_weather.weather_suppressor": "极端天气驱逐器",
+    "block.extreme_weather.pollution_fix_station": "污染修复站",
+    "block.extreme_weather.pollution_detector": "污染检测仪",
+    "item.extreme_weather.weather_balloon": "气象气球",
+    "item.extreme_weather.data_connector": "数据连接器",
+    "item.extreme_weather.weather_missile_1": "气象导弹Ⅰ",
+    "item.extreme_weather.weather_missile_2": "气象导弹Ⅱ",
+    "item.extreme_weather.weather_missile_3": "气象导弹Ⅲ",
+    "item.extreme_weather.repair_agent": "大气修复剂",
+    "item.extreme_weather.co2_fixer": "二氧化碳凝固剂",
+    "item.extreme_weather.methane_converter": "甲烷转换剂",
+    "item.extreme_weather.repair_mix": "修复剂",
+    "item.extreme_weather.water_essence": "水精华",
+    "itemGroup.extreme_weather": "极端天气"
+}

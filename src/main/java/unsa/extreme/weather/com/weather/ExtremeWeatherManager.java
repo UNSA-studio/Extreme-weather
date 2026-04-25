@@ -3,11 +3,16 @@ package unsa.extreme.weather.com.weather;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.network.PacketDistributor;
+import unsa.extreme.weather.com.network.WeatherSyncPacket;
+import unsa.extreme.weather.com.config.ModConfigs;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,6 +39,13 @@ public class ExtremeWeatherManager {
             if (current.isExpired()) {
                 current.end(level);
                 activeWeathers.remove(dim);
+                // 发送天气结束包
+                PacketDistributor.sendToAllPlayers(WeatherSyncPacket.clear());
+            } else {
+                // 每 100 ticks (5秒) 同步一次天气数据
+                if (current.remainingTicks % 100 == 0) {
+                    PacketDistributor.sendToAllPlayers(WeatherSyncPacket.fromWeather(current));
+                }
             }
         } else {
             double chance = getCurrentChance(level);
@@ -45,19 +57,71 @@ public class ExtremeWeatherManager {
                 ActiveExtremeWeather newWeather = new ActiveExtremeWeather(type, duration);
                 newWeather.begin(level);
                 activeWeathers.put(dim, newWeather);
+                // 发送天气开始包
+                PacketDistributor.sendToAllPlayers(WeatherSyncPacket.fromWeather(newWeather));
             }
         }
     }
 
     public static double getCurrentChance(Level level) {
-        // 基础概率 70%，污染放大系数
-        double base = 0.70;
-        double pollutionFactor = PollutionManager.getPollution(level) / 300.0; // 300%时为1.0
+        double base = ModConfigs.extremeWeatherBaseChance.get();
+        double pollutionFactor = PollutionManager.getPollution(level) / 300.0;
         return Math.min(base * pollutionFactor, 1.0);
     }
 
     // ... 其余方法保持不变 ...
+    public static boolean isWeatherActive(Level level) {
+        return activeWeathers.containsKey(level.dimension().location().toString());
+    }
+    public static ActiveExtremeWeather getActiveWeather(Level level) {
+        return activeWeathers.get(level.dimension().location().toString());
+    }
+    public static List<ActiveExtremeWeather> getWeathersInRadius(Level level, BlockPos center, int chunkRadius) {
+        List<ActiveExtremeWeather> result = new ArrayList<>();
+        ActiveExtremeWeather aw = getActiveWeather(level);
+        if (aw != null) {
+            BlockPos awCenter = aw.getCenter();
+            int dx = Math.abs(awCenter.getX() - center.getX()) >> 4;
+            int dz = Math.abs(awCenter.getZ() - center.getZ()) >> 4;
+            if (dx < chunkRadius && dz < chunkRadius) result.add(aw);
+        }
+        return result;
+    }
+    public static boolean isExtremeWeatherImminent(Level level, int ticksInFuture) {
+        ActiveExtremeWeather curr = getActiveWeather(level);
+        if (curr != null && curr.remainingTicks <= ticksInFuture) return true;
+        double chance = getCurrentChance(level);
+        return random.nextDouble() < chance * (ticksInFuture / 1200.0);
+    }
+    public static void forceStartWeather(Level level, ExtremeWeatherType type) {
+        String dim = level.dimension().location().toString();
+        ActiveExtremeWeather existing = activeWeathers.get(dim);
+        if (existing != null) existing.end(level);
+        ActiveExtremeWeather weather = new ActiveExtremeWeather(type, getDefaultDuration(type));
+        weather.begin(level);
+        activeWeathers.put(dim, weather);
+        PacketDistributor.sendToAllPlayers(WeatherSyncPacket.fromWeather(weather));
+    }
+    public static void forceEndWeather(Level level) {
+        String dim = level.dimension().location().toString();
+        ActiveExtremeWeather current = activeWeathers.remove(dim);
+        if (current != null) current.end(level);
+        PacketDistributor.sendToAllPlayers(WeatherSyncPacket.clear());
+    }
+    public static void addSafeZone(Level level, BlockPos center, int radius) {}
+    public static void removeSafeZone(Level level, BlockPos center) {}
+
+    public static Map<ExtremeWeatherType, Double> getCurrentProbabilities(Level level) {
+        Map<ExtremeWeatherType, Double> map = new EnumMap<>(ExtremeWeatherType.class);
+        double base = getCurrentChance(level);
+        for (ExtremeWeatherType type : ExtremeWeatherType.values()) {
+            map.put(type, base);
+        }
+        return map;
+    }
+
     private static Map<ExtremeWeatherType, Double> getBiomeWeights(Biome biome) {
+        // ... 同之前代码 ...
         Map<ExtremeWeatherType, Double> weights = new EnumMap<>(ExtremeWeatherType.class);
         Holder<Biome> holder = Holder.direct(biome);
         if (holder.is(BiomeTags.IS_OCEAN)) {
@@ -115,53 +179,6 @@ public class ExtremeWeatherManager {
         return ExtremeWeatherType.SUPER_RAIN;
     }
 
-    // ... 后面的方法与之前相同 ...
-    public static boolean isWeatherActive(Level level) {
-        return activeWeathers.containsKey(level.dimension().location().toString());
-    }
-    public static ActiveExtremeWeather getActiveWeather(Level level) {
-        return activeWeathers.get(level.dimension().location().toString());
-    }
-    public static List<ActiveExtremeWeather> getWeathersInRadius(Level level, BlockPos center, int chunkRadius) {
-        List<ActiveExtremeWeather> result = new ArrayList<>();
-        ActiveExtremeWeather aw = getActiveWeather(level);
-        if (aw != null) {
-            BlockPos awCenter = aw.getCenter();
-            int dx = Math.abs(awCenter.getX() - center.getX()) >> 4;
-            int dz = Math.abs(awCenter.getZ() - center.getZ()) >> 4;
-            if (dx < chunkRadius && dz < chunkRadius) result.add(aw);
-        }
-        return result;
-    }
-    public static boolean isExtremeWeatherImminent(Level level, int ticksInFuture) {
-        ActiveExtremeWeather curr = getActiveWeather(level);
-        if (curr != null && curr.remainingTicks <= ticksInFuture) return true;
-        double chance = getCurrentChance(level);
-        return random.nextDouble() < chance * (ticksInFuture / 1200.0);
-    }
-    public static void forceStartWeather(Level level, ExtremeWeatherType type) {
-        String dim = level.dimension().location().toString();
-        ActiveExtremeWeather existing = activeWeathers.get(dim);
-        if (existing != null) existing.end(level);
-        ActiveExtremeWeather weather = new ActiveExtremeWeather(type, getDefaultDuration(type));
-        weather.begin(level);
-        activeWeathers.put(dim, weather);
-    }
-    public static void forceEndWeather(Level level) {
-        String dim = level.dimension().location().toString();
-        ActiveExtremeWeather current = activeWeathers.remove(dim);
-        if (current != null) current.end(level);
-    }
-    public static void addSafeZone(Level level, BlockPos center, int radius) {}
-    public static void removeSafeZone(Level level, BlockPos center) {}
-    public static Map<ExtremeWeatherType, Double> getCurrentProbabilities(Level level) {
-        Map<ExtremeWeatherType, Double> map = new EnumMap<>(ExtremeWeatherType.class);
-        double base = getCurrentChance(level);
-        for (ExtremeWeatherType type : ExtremeWeatherType.values()) {
-            map.put(type, base);
-        }
-        return map;
-    }
     private static int getDefaultDuration(ExtremeWeatherType type) {
         return switch (type) {
             case EXTREME_THUNDERSTORM, SUPER_RAIN -> 24000 * (5 + random.nextInt(2));

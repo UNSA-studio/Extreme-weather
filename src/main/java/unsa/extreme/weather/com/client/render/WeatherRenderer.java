@@ -1,15 +1,64 @@
 package unsa.extreme.weather.com.client.render;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.util.RandomSource;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import unsa.extreme.weather.com.ExtremeWeather;
+import unsa.extreme.weather.com.network.ClientWeatherData;
+import unsa.extreme.weather.com.weather.ExtremeWeatherType;
 
 @EventBusSubscriber(modid = ExtremeWeather.MODID, value = Dist.CLIENT)
 public class WeatherRenderer {
+    private static final RandomSource random = RandomSource.create();
+
     @SubscribeEvent
-    public static void onRenderLevel(RenderLevelStageEvent event) {
-        // TODO: 沙尘暴/暴风雪视野遮挡效果
+    public static void onClientTick(ClientTickEvent.Post event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null) return;
+        if (!ClientWeatherData.isActive()) return;
+
+        ExtremeWeatherType type = ClientWeatherData.getType();
+        BlockPos center = ClientWeatherData.getCenter();
+        int radius = ClientWeatherData.getRadius();
+
+        if (center == null) return;
+
+        LocalPlayer player = mc.player;
+        BlockPos playerPos = player.blockPosition();
+        // 检查玩家是否在天气影响范围内
+        int dx = Math.abs(playerPos.getX() - center.getX());
+        int dz = Math.abs(playerPos.getZ() - center.getZ());
+        if (dx > radius || dz > radius) return;
+
+        // 每 tick 生成粒子数量
+        int particleCount = switch (type) {
+            case EXTREME_SANDSTORM -> 15;
+            case EXTREME_BLIZZARD -> 10;
+            case SUPER_TYPHOON -> 8;
+            default -> 0;
+        };
+
+        for (int i = 0; i < particleCount; i++) {
+            double x = playerPos.getX() + random.nextDouble() * 60 - 30;
+            double z = playerPos.getZ() + random.nextDouble() * 60 - 30;
+            double y = playerPos.getY() + random.nextDouble() * 20 - 5;
+
+            if (type == ExtremeWeatherType.EXTREME_SANDSTORM) {
+                mc.level.addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, x, y, z,
+                        0.1 * (random.nextDouble() - 0.5), 0.05 * random.nextDouble(), 0.1 * (random.nextDouble() - 0.5));
+            } else if (type == ExtremeWeatherType.EXTREME_BLIZZARD) {
+                mc.level.addParticle(ParticleTypes.SNOWFLAKE, x, y, z,
+                        0.2 * (random.nextDouble() - 0.5), -0.1, 0.2 * (random.nextDouble() - 0.5));
+            } else if (type == ExtremeWeatherType.SUPER_TYPHOON) {
+                mc.level.addParticle(ParticleTypes.CLOUD, x, y, z,
+                        0.3 * (random.nextDouble() - 0.5), 0.02, 0.3 * (random.nextDouble() - 0.5));
+            }
+        }
     }
 }

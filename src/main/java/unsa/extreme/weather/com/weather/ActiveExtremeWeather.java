@@ -15,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.Holder;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.storage.ServerLevelData;
+import net.minecraft.world.level.levelgen.Heightmap;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 import java.util.ArrayList;
@@ -138,6 +139,25 @@ public class ActiveExtremeWeather {
         }
     }
 
+    private void tickThunderstorm(ServerLevel level) {
+        // 每5秒（100 ticks）判定一次，70%概率生成闪电
+        if (remainingTicks % 100 != 0) return;
+        if (level.random.nextFloat() >= 0.7f) return;
+
+        for (ServerPlayer player : level.players()) {
+            if (!isInRange(player.blockPosition())) continue;
+            // 随机选玩家附近坐标
+            int x = player.blockPosition().getX() + level.random.nextInt(20) - 10;
+            int z = player.blockPosition().getZ() + level.random.nextInt(20) - 10;
+            // 获取该坐标的地表高度（最高的非空气方块）
+            int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+            // 闪电生成在地面以上1格，让它看起来是从天空劈向地面
+            LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
+            bolt.setPos(x, surfaceY + 1, z);
+            level.addFreshEntity(bolt);
+        }
+    }
+
     private void tickSuperRain(ServerLevel level) {
         if (remainingTicks % 100 != 0) return;
         List<ServerPlayer> players = level.players();
@@ -171,20 +191,6 @@ public class ActiveExtremeWeather {
         int toFill = Math.min(10, validPositions.size());
         for (int i = 0; i < toFill; i++) {
             level.setBlock(validPositions.get(i), Blocks.WATER.defaultBlockState(), 3);
-        }
-    }
-
-    private void tickThunderstorm(ServerLevel level) {
-        if (level.random.nextFloat() < 0.7f) {
-            for (ServerPlayer player : level.players()) {
-                if (isInRange(player.blockPosition())) {
-                    BlockPos pos = player.blockPosition().offset(
-                        level.random.nextInt(20) - 10, 0, level.random.nextInt(20) - 10);
-                    LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
-                    bolt.setPos(pos.getX(), pos.getY(), pos.getZ());
-                    level.addFreshEntity(bolt);
-                }
-            }
         }
     }
 

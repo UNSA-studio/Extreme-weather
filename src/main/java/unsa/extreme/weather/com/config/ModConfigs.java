@@ -8,6 +8,7 @@ public class ModConfigs {
 
     public static ModConfigSpec.DoubleValue initialPollution;
     public static ModConfigSpec.DoubleValue extremeWeatherBaseChance;
+    public static ModConfigSpec.BooleanValue typhoonThrowBlocks;
 
     static {
         BUILDER.push("general");
@@ -17,6 +18,9 @@ public class ModConfigs {
         extremeWeatherBaseChance = BUILDER
                 .comment("Base chance of extreme weather (0.0-1.0)")
                 .defineInRange("baseChance", 0.7, 0.0, 1.0);
+        typhoonThrowBlocks = BUILDER
+                .comment("Whether typhoons can throw blocks (may cause server lag, default off)")
+                .define("typhoonThrowBlocks", false);
         BUILDER.pop();
         SPEC = BUILDER.build();
     }
