@@ -2,7 +2,6 @@ package unsa.extreme.weather.com.weather;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.Level;
@@ -22,6 +21,8 @@ public class ExtremeWeatherManager {
 
     private static void onLevelTick(net.neoforged.neoforge.event.tick.LevelTickEvent.Post event) {
         if (event.getLevel() instanceof ServerLevel level) {
+            // 只处理主世界
+            if (level.dimension() != Level.OVERWORLD) return;
             tick(level);
         }
     }
@@ -52,7 +53,6 @@ public class ExtremeWeatherManager {
     private static Map<ExtremeWeatherType, Double> getBiomeWeights(Biome biome) {
         Map<ExtremeWeatherType, Double> weights = new EnumMap<>(ExtremeWeatherType.class);
         Holder<Biome> holder = Holder.direct(biome);
-        // 使用原版生物群系标签来判断大类型
         if (holder.is(BiomeTags.IS_OCEAN)) {
             weights.put(ExtremeWeatherType.SUPER_TYPHOON, 0.60);
             weights.put(ExtremeWeatherType.SUPER_RAIN, 0.25);
@@ -85,7 +85,6 @@ public class ExtremeWeatherManager {
             // nether/end 不生成
             return weights;
         } else {
-            // 其他（平原、草原等）
             weights.put(ExtremeWeatherType.EXTREME_THUNDERSTORM, 0.30);
             weights.put(ExtremeWeatherType.SUPER_RAIN, 0.25);
             weights.put(ExtremeWeatherType.EXTREME_SANDSTORM, 0.25);

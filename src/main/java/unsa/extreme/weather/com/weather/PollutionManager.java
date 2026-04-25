@@ -4,7 +4,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CampfireBlock;
 import net.minecraft.world.level.block.FireBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -27,6 +26,8 @@ public class PollutionManager {
 
     private static void onLevelTick(LevelTickEvent.Post event) {
         if (event.getLevel() instanceof ServerLevel level) {
+            // 只处理主世界
+            if (level.dimension() != Level.OVERWORLD) return;
             if (level.getGameTime() % 24000 == 0) {
                 dailyTick(level);
             }
@@ -42,8 +43,7 @@ public class PollutionManager {
 
     private static double calculateDailyIncrease(ServerLevel level) {
         double increase = 0.0;
-        // 使用 NeoForge 扩展的 chunk 迭代器
-        for (LevelChunk chunk : level.getChunkSource().getLoadedChunksIterable()) {
+        for (LevelChunk chunk : level.getChunkSource().getLoadedChunks()) {
             increase += scanChunk(chunk);
         }
         return increase;
