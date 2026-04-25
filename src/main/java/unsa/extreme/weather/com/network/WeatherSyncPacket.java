@@ -2,6 +2,7 @@ package unsa.extreme.weather.com.network;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -50,32 +51,36 @@ public class WeatherSyncPacket implements CustomPacketPayload {
         return TYPE;
     }
 
-    public static final StreamCodec<ByteBuf, WeatherSyncPacket> STREAM_CODEC = new StreamCodec<>() {
-        @Override
-        public WeatherSyncPacket decode(ByteBuf buf) {
-            boolean active = buf.readBoolean();
-            String typeName = buf.readUtf();
-            ExtremeWeatherType wtype = typeName.isEmpty() ? null : ExtremeWeatherType.valueOf(typeName);
-            long pos = buf.readLong();
-            BlockPos center = pos == 0 ? null : BlockPos.of(pos);
-            int radius = buf.readInt();
-            double mx = buf.readDouble();
-            double mz = buf.readDouble();
-            int ticks = buf.readInt();
-            return new WeatherSyncPacket(active, wtype, center, radius, mx, mz, ticks);
-        }
+    public static final StreamCodec<ByteBuf, WeatherSyncPacket> STREAM_CODEC = StreamCodec.of(
+            WeatherSyncPacket::encode,
+            WeatherSyncPacket::decode
+    );
 
-        @Override
-        public void encode(ByteBuf buf, WeatherSyncPacket packet) {
-            buf.writeBoolean(packet.active);
-            buf.writeUtf(packet.weatherType == null ? "" : packet.weatherType.name());
-            buf.writeLong(packet.center == null ? 0 : packet.center.asLong());
-            buf.writeInt(packet.radius);
-            buf.writeDouble(packet.moveX);
-            buf.writeDouble(packet.moveZ);
-            buf.writeInt(packet.remainingTicks);
-        }
-    };
+    private static WeatherSyncPacket decode(ByteBuf buf) {
+        // 将 ByteBuf 视为 FriendlyByteBuf 以使用 readUtf/writeUtf
+        FriendlyByteBuf friendly = new FriendlyByteBuf(buf);
+        boolean active = friendly.readBoolean();
+        String typeName = friendly.readUtf();
+        ExtremeWeatherType wtype = typeName.isEmpty() ? null : ExtremeWeatherType.valueOf(typeName);
+        long pos = friendly.readLong();
+        BlockPos center = pos == 0 ? null : BlockPos.of(pos);
+        int radius = friendly.readInt();
+        double mx = friendly.readDouble();
+        double mz = friendly.readDouble();
+        int ticks = friendly.readInt();
+        return new WeatherSyncPacket(active, wtype, center, radius, mx, mz, ticks);
+    }
+
+    private static void encode(ByteBuf buf, WeatherSyncPacket packet) {
+        FriendlyByteBuf friendly = new FriendlyByteBuf(buf);
+        friendly.writeBoolean(packet.active);
+        friendly.writeUtf(packet.weatherType == null ? "" : packet.weatherType.name());
+        friendly.writeLong(packet.center == null ? 0 : packet.center.asLong());
+        friendly.writeInt(packet.radius);
+        friendly.writeDouble(packet.moveX);
+        friendly.writeDouble(packet.moveZ);
+        friendly.writeInt(packet.remainingTicks);
+    }
 
     public static void handle(WeatherSyncPacket packet, IPayloadContext ctx) {
         ctx.enqueueWork(() -> ClientWeatherData.updateFromPacket(packet));
