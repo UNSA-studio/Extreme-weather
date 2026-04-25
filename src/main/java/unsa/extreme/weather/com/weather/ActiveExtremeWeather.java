@@ -7,14 +7,19 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ArmorMaterial;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.Holder;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.storage.ServerLevelData;
+import net.minecraft.world.level.chunk.LevelChunk;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
 public class ActiveExtremeWeather {
@@ -49,7 +54,6 @@ public class ActiveExtremeWeather {
             speed = 0.02 + RANDOM.nextDouble() * 0.02;
             updateDirectionToNearestPlayer(serverLevel);
 
-            // 设置原版天气
             ServerLevelData data = (ServerLevelData) serverLevel.getLevelData();
             switch (type) {
                 case EXTREME_THUNDERSTORM:
@@ -64,14 +68,13 @@ public class ActiveExtremeWeather {
                     data.setRainTime(remainingTicks);
                     break;
                 case EXTREME_BLIZZARD:
-                    data.setRaining(true); // 暴风雪表现为下雪，但需要生物群系支持；可以使用 raining 但调用下雪粒子还需额外处理
+                    data.setRaining(true);
                     data.setThundering(false);
                     data.setRainTime(remainingTicks);
                     break;
                 case SUPER_DROUGHT:
                 case EXTREME_SANDSTORM:
                 case SUPER_TYPHOON:
-                    // 这些天气不改变原版 rain/thunder 状态，或设置为晴天
                     data.setRaining(false);
                     data.setThundering(false);
                     break;
@@ -83,7 +86,6 @@ public class ActiveExtremeWeather {
     public void end(Level level) {
         active = false;
         if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
-            // 恢复原版天气
             ServerLevelData data = (ServerLevelData) serverLevel.getLevelData();
             data.setRaining(false);
             data.setThundering(false);
@@ -97,7 +99,6 @@ public class ActiveExtremeWeather {
         if (!active) return;
         remainingTicks--;
 
-        // 维持原版天气状态（确保不会中途被其他模组意外重置）
         ServerLevelData data = (ServerLevelData) level.getLevelData();
         switch (type) {
             case EXTREME_THUNDERSTORM:
@@ -137,6 +138,82 @@ public class ActiveExtremeWeather {
         }
     }
 
+    private void tickSuperRain(ServerLevel level) {
+        // 每5秒（100 ticks）执行一次
+        if (remainingTicks % 100 != 0) return;
+        // 获取所有在线玩家
+        List<Player> players = level.players();
+        if (players.isEmpty()) return;
+
+        // 收集所有玩家渲染视距内的低洼处（空气，下方为实心方块）
+        List<BlockPos> validPositions = new ArrayList<>();
+        int viewDistance = level.getServer().getPlayerList().getViewDistance(); // 区块半径
+        for (Player player : players) {
+            BlockPos playerPos = player.blockPosition();
+            int minX = playerPos.getX() - (viewDistance * 16);
+            int maxX = playerPos.getX() + (viewDistance * 16);
+            int minZ = playerPos.getZ() - (viewDistance * 16);
+            int maxZ = playerPos.getZ() + (viewDistance * 16);
+            // 遍历范围内的所有方块（简化：只检查水平范围，高度取玩家附近y）
+            for (int x = minX; x <= maxX; x += 4) { // 步长4以减少计算量
+                for (int z = minZ; z <= maxZ; z += 4) {
+                    // 获取该列的地表高度
+                    BlockPos.MutableBlockPos checkPos = new BlockPos.MutableBlockPos(x, playerPos.getY(), z);
+                    // 向下搜索直到找到地面
+                    while (checkPos.getY() > level.getMinBuildHeight() && level.getBlockState(checkPos).isAir()) {
+                        checkPos.setY(checkPos.getY() - 1);
+                    }
+                    // 此时checkPos是地面方块，其上应为空气
+                    BlockPos airPos = checkPos.above();
+                    BlockState groundState = level.getBlockState(checkPos);
+                    if (level.getBlockState(airPos).isAir() && groundState.isCollisionShapeFullBlock(level, checkPos)) {
+                        validPositions.add(airPos.immutable());
+                    }
+                }
+            }
+        }
+
+        if (validPositions.isEmpty()) return;
+
+        // 随机打乱并取最多10个位置
+        Collections.shuffle(validPositions, RANDOM);
+        int toFill = Math.min(10, validPositions.size());
+        for (int i = 0; i < toFill; i++) {
+            BlockPos pos = validPositions.get(i);
+            level.setBlock(pos, Blocks.WATER.defaultBlockState(), 3);
+        }
+    }
+
+    private void tickThunderstorm(ServerLevel level) {
+        if (level.random.nextFloat() < 0.7f) {
+            for (Player player : level.players()) {
+                if (isInRange(player.blockPosition())) {
+                    BlockPos pos = player.blockPosition().offset(
+                        level.random.nextInt(20) - 10, 0, level.random.nextInt(20) - 10);
+                    LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
+                    bolt.setPos(pos.getX(), pos.getY(), pos.getZ());
+                    level.addFreshEntity(bolt);
+                }
+            }
+        }
+    }
+
+    private void tickSuperDrought(ServerLevel level) {
+        for (Player player : level.players()) {
+            if (!isInRange(player.blockPosition())) continue;
+            boolean exposed = level.canSeeSky(player.blockPosition());
+            if (exposed) {
+                int protection = getArmorProtection(player);
+                int interval = protection >= 2 ? 600 : 200;
+                if (player.tickCount % interval == 0) player.setRemainingFireTicks(100);
+            }
+        }
+    }
+
+    private void tickSandstorm(ServerLevel level) {}
+    private void tickBlizzard(ServerLevel level) {}
+    private void tickTyphoon(ServerLevel level) {}
+
     private void updateDirectionToNearestPlayer(ServerLevel level) {
         Player nearest = findNearestPlayer(level, center);
         if (nearest != null) {
@@ -161,49 +238,6 @@ public class ActiveExtremeWeather {
         }
         return closest;
     }
-
-    private void tickThunderstorm(ServerLevel level) {
-        if (level.random.nextFloat() < 0.7f) {
-            for (Player player : level.players()) {
-                if (isInRange(player.blockPosition())) {
-                    BlockPos pos = player.blockPosition().offset(
-                        level.random.nextInt(20) - 10, 0, level.random.nextInt(20) - 10);
-                    LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
-                    bolt.setPos(pos.getX(), pos.getY(), pos.getZ());
-                    level.addFreshEntity(bolt);
-                }
-            }
-        }
-    }
-
-    private void tickSuperRain(ServerLevel level) {
-        if (level.random.nextFloat() < 0.1f) {
-            for (Player player : level.players()) {
-                if (!isInRange(player.blockPosition())) continue;
-                BlockPos pos = player.blockPosition().below();
-                if (level.getBlockState(pos).isAir() &&
-                    level.getBlockState(pos.below()).isCollisionShapeFullBlock(level, pos.below())) {
-                    level.setBlock(pos, Blocks.WATER.defaultBlockState(), 3);
-                }
-            }
-        }
-    }
-
-    private void tickSuperDrought(ServerLevel level) {
-        for (Player player : level.players()) {
-            if (!isInRange(player.blockPosition())) continue;
-            boolean exposed = level.canSeeSky(player.blockPosition());
-            if (exposed) {
-                int protection = getArmorProtection(player);
-                int interval = protection >= 2 ? 600 : 200;
-                if (player.tickCount % interval == 0) player.setRemainingFireTicks(100);
-            }
-        }
-    }
-
-    private void tickSandstorm(ServerLevel level) {}
-    private void tickBlizzard(ServerLevel level) {}
-    private void tickTyphoon(ServerLevel level) {}
 
     private int getArmorProtection(Player player) {
         int protection = 0;
