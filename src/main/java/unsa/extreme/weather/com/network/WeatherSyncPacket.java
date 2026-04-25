@@ -14,74 +14,82 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
 
-/**
- * 服务端 -> 客户端：同步天气信息
- */
-public record WeatherSyncPacket(
-        Optional<ExtremeWeatherType> type,
-        Optional<BlockPos> center,
-        Optional<Integer> radius,
-        Optional<Double> moveX,
-        Optional<Double> moveZ,
-        Optional<Integer> remainingTicks,
-        Optional<Boolean> active
-) implements CustomPacketPayload {
-
+public class WeatherSyncPacket implements CustomPacketPayload {
     public static final CustomPacketPayload.Type<WeatherSyncPacket> TYPE =
-            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(ExtremeWeather.MODID, "weather_sync"));
+            new Type<>(ResourceLocation.fromNamespaceAndPath(ExtremeWeather.MODID, "weather_sync"));
+
+    private final boolean active;
+    private final ExtremeWeatherType weatherType;
+    private final BlockPos center;
+    private final int radius;
+    private final double moveX;
+    private final double moveZ;
+    private final int remainingTicks;
+
+    public WeatherSyncPacket(boolean active, ExtremeWeatherType weatherType, BlockPos center,
+                             int radius, double moveX, double moveZ, int remainingTicks) {
+        this.active = active;
+        this.weatherType = weatherType;
+        this.center = center;
+        this.radius = radius;
+        this.moveX = moveX;
+        this.moveZ = moveZ;
+        this.remainingTicks = remainingTicks;
+    }
+
+    public static WeatherSyncPacket fromWeather(ActiveExtremeWeather weather) {
+        if (weather == null) return createClear();
+        Vec3 dir = weather.getMoveDirection();
+        return new WeatherSyncPacket(true, weather.type, weather.getCenter(), weather.getRadius(),
+                dir != null ? dir.x : 0, dir != null ? dir.z : 0, weather.remainingTicks);
+    }
+
+    public static WeatherSyncPacket createClear() {
+        return new WeatherSyncPacket(false, null, null, 0, 0, 0, 0);
+    }
 
     @Override
-    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+    public Type<? extends CustomPacketPayload> type() {
         return TYPE;
     }
 
-    public static final StreamCodec<ByteBuf, WeatherSyncPacket> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8.map(
-                    s -> ExtremeWeatherType.valueOf(s),
-                    type -> type.name()
-            )),
-            WeatherSyncPacket::type,
-            ByteBufCodecs.optional(ByteBufCodecs.VAR_LONG.map(BlockPos::of, BlockPos::asLong)),
-            WeatherSyncPacket::center,
-            ByteBufCodecs.optional(ByteBufCodecs.VAR_INT),
-            WeatherSyncPacket::radius,
-            ByteBufCodecs.optional(ByteBufCodecs.DOUBLE),
-            WeatherSyncPacket::moveX,
-            ByteBufCodecs.optional(ByteBufCodecs.DOUBLE),
-            WeatherSyncPacket::moveZ,
-            ByteBufCodecs.optional(ByteBufCodecs.VAR_INT),
-            WeatherSyncPacket::remainingTicks,
-            ByteBufCodecs.optional(ByteBufCodecs.BOOL),
-            WeatherSyncPacket::active,
-            WeatherSyncPacket::new
-    );
+    public static final StreamCodec<ByteBuf, WeatherSyncPacket> STREAM_CODEC = new StreamCodec<>() {
+        @Override
+        public WeatherSyncPacket decode(ByteBuf buf) {
+            boolean active = buf.readBoolean();
+            String typeName = ByteBufCodecs.STRING_UTF8.read(buf);
+            ExtremeWeatherType wtype = typeName.isEmpty() ? null : ExtremeWeatherType.valueOf(typeName);
+            long pos = buf.readLong();
+            BlockPos center = pos == 0 ? null : BlockPos.of(pos);
+            int radius = buf.readInt();
+            double mx = buf.readDouble();
+            double mz = buf.readDouble();
+            int ticks = buf.readInt();
+            return new WeatherSyncPacket(active, wtype, center, radius, mx, mz, ticks);
+        }
+
+        @Override
+        public void encode(ByteBuf buf, WeatherSyncPacket packet) {
+            buf.writeBoolean(packet.active);
+            ByteBufCodecs.STRING_UTF8.write(buf, packet.weatherType == null ? "" : packet.weatherType.name());
+            buf.writeLong(packet.center == null ? 0 : packet.center.asLong());
+            buf.writeInt(packet.radius);
+            buf.writeDouble(packet.moveX);
+            buf.writeDouble(packet.moveZ);
+            buf.writeInt(packet.remainingTicks);
+        }
+    };
 
     public static void handle(WeatherSyncPacket packet, IPayloadContext ctx) {
-        ctx.enqueueWork(() -> {
-            ClientWeatherData.updateFromPacket(packet);
-        });
+        ctx.enqueueWork(() -> ClientWeatherData.updateFromPacket(packet));
     }
 
-    // 静态工厂方法
-    public static WeatherSyncPacket fromWeather(ActiveExtremeWeather weather) {
-        if (weather == null) {
-            return new WeatherSyncPacket(Optional.empty(), Optional.empty(), Optional.empty(),
-                    Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
-        }
-        Vec3 dir = weather.getMoveDirection();
-        return new WeatherSyncPacket(
-                Optional.of(weather.type),
-                Optional.of(weather.getCenter()),
-                Optional.of(weather.getRadius()),
-                Optional.of(dir != null ? dir.x : 0),
-                Optional.of(dir != null ? dir.z : 0),
-                Optional.of(weather.remainingTicks),
-                Optional.of(true)
-        );
-    }
-
-    public static WeatherSyncPacket clear() {
-        return new WeatherSyncPacket(Optional.empty(), Optional.empty(), Optional.empty(),
-                Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
-    }
+    // getters for ClientWeatherData
+    public boolean isActive() { return active; }
+    public ExtremeWeatherType getWeatherType() { return weatherType; }
+    public BlockPos getCenter() { return center; }
+    public int getRadius() { return radius; }
+    public double getMoveX() { return moveX; }
+    public double getMoveZ() { return moveZ; }
+    public int getRemainingTicks() { return remainingTicks; }
 }

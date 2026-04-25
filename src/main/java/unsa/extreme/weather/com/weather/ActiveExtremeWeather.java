@@ -18,6 +18,7 @@ import net.minecraft.world.level.storage.ServerLevelData;
 import net.minecraft.world.level.levelgen.Heightmap;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
+import unsa.extreme.weather.com.config.ModConfigs;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -140,18 +141,14 @@ public class ActiveExtremeWeather {
     }
 
     private void tickThunderstorm(ServerLevel level) {
-        // 每5秒（100 ticks）判定一次，70%概率生成闪电
         if (remainingTicks % 100 != 0) return;
         if (level.random.nextFloat() >= 0.7f) return;
 
         for (ServerPlayer player : level.players()) {
             if (!isInRange(player.blockPosition())) continue;
-            // 随机选玩家附近坐标
             int x = player.blockPosition().getX() + level.random.nextInt(20) - 10;
             int z = player.blockPosition().getZ() + level.random.nextInt(20) - 10;
-            // 获取该坐标的地表高度（最高的非空气方块）
             int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
-            // 闪电生成在地面以上1格，让它看起来是从天空劈向地面
             LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
             bolt.setPos(x, surfaceY + 1, z);
             level.addFreshEntity(bolt);
@@ -163,7 +160,8 @@ public class ActiveExtremeWeather {
         List<ServerPlayer> players = level.players();
         if (players.isEmpty()) return;
 
-        int viewDistanceBlocks = level.getServer().getMaxPlayerViewDistance() * 16;
+        int viewDistance = level.getServer().getPlayerList().getViewDistance();
+        int viewDistanceBlocks = viewDistance * 16;
         List<BlockPos> validPositions = new ArrayList<>();
         for (ServerPlayer player : players) {
             BlockPos playerPos = player.blockPosition();
@@ -208,7 +206,30 @@ public class ActiveExtremeWeather {
 
     private void tickSandstorm(ServerLevel level) {}
     private void tickBlizzard(ServerLevel level) {}
-    private void tickTyphoon(ServerLevel level) {}
+    private void tickTyphoon(ServerLevel level) {
+        if (ModConfigs.typhoonThrowBlocks.get() && remainingTicks % 200 == 0) {
+            for (ServerPlayer player : level.players()) {
+                if (!isInRange(player.blockPosition())) continue;
+                int x = player.blockPosition().getX() + level.random.nextInt(40) - 20;
+                int z = player.blockPosition().getZ() + level.random.nextInt(40) - 20;
+                int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+                BlockPos surfacePos = new BlockPos(x, surfaceY, z);
+                BlockState state = level.getBlockState(surfacePos);
+                if (!state.isAir() && state.getDestroySpeed(level, surfacePos) >= 0 && !state.liquid()) {
+                    net.minecraft.world.item.ItemStack drop = new net.minecraft.world.item.ItemStack(state.getBlock().asItem());
+                    net.minecraft.world.entity.item.ItemEntity itemEntity =
+                        new net.minecraft.world.entity.item.ItemEntity(level, x + 0.5, surfaceY + 2, z + 0.5, drop);
+                    itemEntity.setDeltaMovement(
+                        (level.random.nextDouble() - 0.5) * 2,
+                        level.random.nextDouble() * 1.5 + 0.5,
+                        (level.random.nextDouble() - 0.5) * 2
+                    );
+                    level.addFreshEntity(itemEntity);
+                    level.removeBlock(surfacePos, false);
+                }
+            }
+        }
+    }
 
     private void updateDirectionToNearestPlayer(ServerLevel level) {
         Player nearest = findNearestPlayer(level, center);
