@@ -5,24 +5,22 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.particle.TextureSheetParticle;
-import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import unsa.extreme.weather.com.network.ClientWeatherData;
 import unsa.extreme.weather.com.weather.ExtremeWeatherType;
 
-import java.util.Random;
-
 public class WeatherDustParticle extends TextureSheetParticle {
     private final SpriteSet sprites;
-    private final Random random;
+    private final RandomSource random;
 
     public WeatherDustParticle(ClientLevel level, double x, double y, double z, SpriteSet sprites) {
         super(level, x, y, z);
         this.sprites = sprites;
-        this.random = new Random();
+        this.random = RandomSource.create();
         this.setSprite(sprites.get(random));
 
-        this.lifetime = 20 + random.nextInt(10);
+        this.lifetime = 20 + random.nextIntBetweenInclusive(0, 10);
         this.scale(0.4F + random.nextFloat() * 1.0F);
         this.gravity = 0;
 
@@ -59,7 +57,7 @@ public class WeatherDustParticle extends TextureSheetParticle {
     }
 
     @Override
-    protected float getQuadSize(float partialTicks) {
+    public float getQuadSize(float partialTicks) {
         float progress = (this.age + partialTicks) / (float) this.lifetime;
         return this.quadSize * (1.0F - progress * progress * 0.5F);
     }
