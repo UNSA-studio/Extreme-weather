@@ -25,6 +25,9 @@ import java.util.List;
 import java.util.Random;
 
 public class ActiveExtremeWeather {
+    // ... 所有成员变量保持不变，为了简洁只展示修改部分，实际用完整文件覆盖
+    // 这里直接给出完整文件，确保清晰
+
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Random RANDOM = new Random();
 
@@ -57,6 +60,9 @@ public class ActiveExtremeWeather {
             updateDirectionToNearestPlayer(serverLevel);
 
             ServerLevelData data = (ServerLevelData) serverLevel.getLevelData();
+            // 强制清空所有原版天气状态，防止残留
+            data.setRaining(false);
+            data.setThundering(false);
             switch (type) {
                 case EXTREME_THUNDERSTORM:
                     data.setRaining(true);
@@ -66,24 +72,24 @@ public class ActiveExtremeWeather {
                     break;
                 case SUPER_RAIN:
                     data.setRaining(true);
-                    data.setThundering(false);
                     data.setRainTime(remainingTicks);
                     break;
                 case EXTREME_BLIZZARD:
-                    data.setRaining(true);
-                    data.setThundering(false);
+                    data.setRaining(true); // 暴风雪使用原版下雨状态，但粒子由客户端处理
                     data.setRainTime(remainingTicks);
                     break;
                 case SUPER_DROUGHT:
                 case EXTREME_SANDSTORM:
                 case SUPER_TYPHOON:
-                    data.setRaining(false);
-                    data.setThundering(false);
+                    // 这些天气保持晴天状态，不设置原版下雨
                     break;
             }
             LOGGER.info("Extreme weather {} started at {} radius {}", type.name(), center, radius);
         }
     }
+
+    // end, tick 等方法保持不变
+    // 为了完整，把剩下的全部贴出
 
     public void end(Level level) {
         active = false;
@@ -114,17 +120,13 @@ public class ActiveExtremeWeather {
                 if (!data.isRaining()) data.setRaining(true);
                 data.setRainTime(remainingTicks);
                 break;
-            case SUPER_DROUGHT:
-            case EXTREME_SANDSTORM:
-            case SUPER_TYPHOON:
+            default:
                 if (data.isRaining()) data.setRaining(false);
                 if (data.isThundering()) data.setThundering(false);
                 break;
         }
 
-        if (remainingTicks % 100 == 0) {
-            updateDirectionToNearestPlayer(level);
-        }
+        if (remainingTicks % 100 == 0) updateDirectionToNearestPlayer(level);
         if (moveDirection != null && center != null) {
             Vec3 newCenter = Vec3.atCenterOf(center).add(moveDirection.scale(speed));
             center = BlockPos.containing(newCenter.x, newCenter.y, newCenter.z);
@@ -143,7 +145,6 @@ public class ActiveExtremeWeather {
     private void tickThunderstorm(ServerLevel level) {
         if (remainingTicks % 100 != 0) return;
         if (level.random.nextFloat() >= 0.7f) return;
-
         for (ServerPlayer player : level.players()) {
             if (!isInRange(player.blockPosition())) continue;
             int x = player.blockPosition().getX() + level.random.nextInt(20) - 10;
@@ -159,7 +160,6 @@ public class ActiveExtremeWeather {
         if (remainingTicks % 100 != 0) return;
         List<ServerPlayer> players = level.players();
         if (players.isEmpty()) return;
-
         int viewDistance = level.getServer().getPlayerList().getViewDistance();
         int viewDistanceBlocks = viewDistance * 16;
         List<BlockPos> validPositions = new ArrayList<>();
@@ -183,7 +183,6 @@ public class ActiveExtremeWeather {
                 }
             }
         }
-
         if (validPositions.isEmpty()) return;
         Collections.shuffle(validPositions, RANDOM);
         int toFill = Math.min(10, validPositions.size());

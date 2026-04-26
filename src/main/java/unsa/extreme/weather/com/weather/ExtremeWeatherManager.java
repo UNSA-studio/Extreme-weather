@@ -3,7 +3,6 @@ package unsa.extreme.weather.com.weather;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
@@ -18,7 +17,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ExtremeWeatherManager {
     private static final Map<String, ActiveExtremeWeather> activeWeathers = new ConcurrentHashMap<>();
+    private static final Map<String, Integer> cooldownTicks = new ConcurrentHashMap<>();
     private static final Random random = new Random();
+    private static final double DAILY_CHANCE = 0.70; // 基础每日概率70%
+    private static final int COOLDOWN_DURATION = 24000; // 1天冷却
 
     public static void init(IEventBus modBus) {
         NeoForge.EVENT_BUS.addListener(ExtremeWeatherManager::onLevelTick);
@@ -33,23 +35,26 @@ public class ExtremeWeatherManager {
 
     private static void tick(ServerLevel level) {
         String dim = level.dimension().location().toString();
+        
+        // 处理冷却
+        Integer cooldown = cooldownTicks.getOrDefault(dim, 0);
+        if (cooldown > 0) {
+            cooldownTicks.put(dim, cooldown - 1);
+        }
+
         ActiveExtremeWeather current = activeWeathers.get(dim);
         if (current != null) {
             current.tick(level);
             if (current.isExpired()) {
                 current.end(level);
                 activeWeathers.remove(dim);
-                // 发送天气结束包
+                cooldownTicks.put(dim, COOLDOWN_DURATION); // 冷却
                 PacketDistributor.sendToAllPlayers(WeatherSyncPacket.createClear());
-            } else {
-                // 每 100 ticks (5秒) 同步一次天气数据
-                if (current.remainingTicks % 100 == 0) {
-                    PacketDistributor.sendToAllPlayers(WeatherSyncPacket.fromWeather(current));
-                }
             }
-        } else {
-            double chance = getCurrentChance(level);
-            if (random.nextDouble() < chance) {
+        } else if (cooldownTicks.getOrDefault(dim, 0) <= 0) {
+            // 每 tick 概率 = 每日概率 / 一天总 tick 数
+            double tickChance = DAILY_CHANCE / 24000.0;
+            if (random.nextDouble() < tickChance * (1 + PollutionManager.getPollution(level) / 300.0)) {
                 BlockPos spawn = level.getSharedSpawnPos();
                 ExtremeWeatherType type = chooseTypeByBiome(level, spawn);
                 if (type == null) return;
@@ -57,19 +62,17 @@ public class ExtremeWeatherManager {
                 ActiveExtremeWeather newWeather = new ActiveExtremeWeather(type, duration);
                 newWeather.begin(level);
                 activeWeathers.put(dim, newWeather);
-                // 发送天气开始包
                 PacketDistributor.sendToAllPlayers(WeatherSyncPacket.fromWeather(newWeather));
             }
         }
     }
 
     public static double getCurrentChance(Level level) {
-        double base = ModConfigs.extremeWeatherBaseChance.get();
+        double base = DAILY_CHANCE;
         double pollutionFactor = PollutionManager.getPollution(level) / 300.0;
         return Math.min(base * pollutionFactor, 1.0);
     }
 
-    // ... 其余方法保持不变 ...
     public static boolean isWeatherActive(Level level) {
         return activeWeathers.containsKey(level.dimension().location().toString());
     }
@@ -100,13 +103,17 @@ public class ExtremeWeatherManager {
         ActiveExtremeWeather weather = new ActiveExtremeWeather(type, getDefaultDuration(type));
         weather.begin(level);
         activeWeathers.put(dim, weather);
+        cooldownTicks.put(dim, 0); // 清除冷却，立即开始
         PacketDistributor.sendToAllPlayers(WeatherSyncPacket.fromWeather(weather));
     }
     public static void forceEndWeather(Level level) {
         String dim = level.dimension().location().toString();
         ActiveExtremeWeather current = activeWeathers.remove(dim);
-        if (current != null) current.end(level);
-        PacketDistributor.sendToAllPlayers(WeatherSyncPacket.createClear());
+        if (current != null) {
+            current.end(level);
+            cooldownTicks.put(dim, COOLDOWN_DURATION); // 设置冷却，防止再次生成
+            PacketDistributor.sendToAllPlayers(WeatherSyncPacket.createClear());
+        }
     }
     public static void addSafeZone(Level level, BlockPos center, int radius) {}
     public static void removeSafeZone(Level level, BlockPos center) {}
@@ -120,8 +127,9 @@ public class ExtremeWeatherManager {
         return map;
     }
 
+    // 生物群系权重等其余方法保持不变，省略以让回复清晰
+    // 实际上需要完整的文件，下面补全
     private static Map<ExtremeWeatherType, Double> getBiomeWeights(Biome biome) {
-        // ... 同之前代码 ...
         Map<ExtremeWeatherType, Double> weights = new EnumMap<>(ExtremeWeatherType.class);
         Holder<Biome> holder = Holder.direct(biome);
         if (holder.is(BiomeTags.IS_OCEAN)) {
