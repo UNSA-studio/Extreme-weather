@@ -26,38 +26,47 @@ public class WeatherRenderer {
         ExtremeWeatherType type = ClientWeatherData.getType();
         BlockPos center = ClientWeatherData.getCenter();
         int radius = ClientWeatherData.getRadius();
-
-        if (center == null) return;
+        if (center == null || type == null) return;
 
         LocalPlayer player = mc.player;
         BlockPos playerPos = player.blockPosition();
-        // 检查玩家是否在天气影响范围内
         int dx = Math.abs(playerPos.getX() - center.getX());
         int dz = Math.abs(playerPos.getZ() - center.getZ());
         if (dx > radius || dz > radius) return;
 
-        // 每 tick 生成粒子数量
         int particleCount = switch (type) {
-            case EXTREME_SANDSTORM -> 15;
-            case EXTREME_BLIZZARD -> 10;
-            case SUPER_TYPHOON -> 8;
+            case EXTREME_SANDSTORM -> 20;  // 暴增粒子数
+            case EXTREME_BLIZZARD -> 15;
+            case SUPER_TYPHOON -> 10;
             default -> 0;
         };
 
         for (int i = 0; i < particleCount; i++) {
-            double x = playerPos.getX() + random.nextDouble() * 60 - 30;
-            double z = playerPos.getZ() + random.nextDouble() * 60 - 30;
-            double y = playerPos.getY() + random.nextDouble() * 20 - 5;
+            double x = playerPos.getX() + random.nextDouble() * 80 - 40;
+            double z = playerPos.getZ() + random.nextDouble() * 80 - 40;
+            double y = playerPos.getY() + random.nextDouble() * 25 - 5;
 
             if (type == ExtremeWeatherType.EXTREME_SANDSTORM) {
-                mc.level.addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, x, y, z,
-                        0.1 * (random.nextDouble() - 0.5), 0.05 * random.nextDouble(), 0.1 * (random.nextDouble() - 0.5));
+                mc.level.addParticle(ParticleTypes.CLOUD, x, y, z,
+                        0.2 * (random.nextDouble() - 0.5),
+                        0.01,
+                        0.2 * (random.nextDouble() - 0.5));
+                if (random.nextFloat() < 0.4) {
+                    mc.level.addParticle(ParticleTypes.LARGE_SMOKE, x + 2, y + 1, z + 2, 0, 0, 0);
+                }
             } else if (type == ExtremeWeatherType.EXTREME_BLIZZARD) {
                 mc.level.addParticle(ParticleTypes.SNOWFLAKE, x, y, z,
-                        0.2 * (random.nextDouble() - 0.5), -0.1, 0.2 * (random.nextDouble() - 0.5));
+                        0.3 * (random.nextDouble() - 0.5),
+                        -0.15,
+                        0.3 * (random.nextDouble() - 0.5));
+                if (random.nextFloat() < 0.2) {
+                    mc.level.addParticle(ParticleTypes.CLOUD, x, y + 2, z, 0, 0, 0);
+                }
             } else if (type == ExtremeWeatherType.SUPER_TYPHOON) {
                 mc.level.addParticle(ParticleTypes.CLOUD, x, y, z,
-                        0.3 * (random.nextDouble() - 0.5), 0.02, 0.3 * (random.nextDouble() - 0.5));
+                        0.4 * (random.nextDouble() - 0.5),
+                        0.02,
+                        0.4 * (random.nextDouble() - 0.5));
             }
         }
     }
